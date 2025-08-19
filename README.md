@@ -10,7 +10,7 @@ This project allows you to view exported WhatsApp chat logs in a clean HTML page
 
 ## Usage
 1. Place your exported WhatsApp `.txt` files in the project folder.
-2. Adjust `YOUR_NAME` in `chat_parser.py` to identify your messages.
-3. Run the Python script to generate `index.html`:
+2. Adjust `YOUR_NAME` in `build.py` to identify your messages.
+3. Run the Python script to generate `output.html`:
 ```bash
-python3 chat_parser.py
+python3 build.py
