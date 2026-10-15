@@ -1,4 +1,10 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# WhatsApp Chat Viewer files
 /media
 *.html
 .env
 chat.txt
+/examples
