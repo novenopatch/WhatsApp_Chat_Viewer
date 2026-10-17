@@ -918,7 +918,19 @@
   // -------------------------------------------------------------------------
   window.jumpToMessage = function(msgId) {
     if (!msgId) return;
-    const target = document.getElementById(msgId);
+    let target = document.getElementById(msgId);
+    if (!target && typeof windowedFragments !== 'undefined') {
+      for (const [dg, frag] of windowedFragments.entries()) {
+        if (frag.querySelector && frag.querySelector('#' + msgId)) {
+          dg.appendChild(frag);
+          dg.style.height = '';
+          dg.classList.remove('is-windowed');
+          windowedFragments.delete(dg);
+          target = document.getElementById(msgId);
+          break;
+        }
+      }
+    }
     if (!target) return;
 
     // Close gallery modal if open
@@ -1202,5 +1214,69 @@
       if (e.key === 'Escape' && galleryModal.classList.contains('active')) closeGallery();
     });
   })();
+
+  // -------------------------------------------------------------------------
+  // Adaptive DOM Windowing Engine (Virtual Scroller)
+  // Keeps active DOM nodes under ~100 while preserving scroll geometry
+  // -------------------------------------------------------------------------
+  const windowedFragments = new Map();
+
+  function initVirtualScroller() {
+    if (!window.IntersectionObserver || !chatContainer) return;
+    const dayGroups = chatContainer.querySelectorAll('.day-group');
+    if (dayGroups.length < 15) return; // Only activate on large conversations (15+ days)
+
+    const windowingObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const dg = entry.target;
+        if (entry.isIntersecting) {
+          // Mount day-group content back into DOM
+          const fragment = windowedFragments.get(dg);
+          if (fragment) {
+            dg.appendChild(fragment);
+            windowedFragments.delete(dg);
+            dg.style.minHeight = '';
+            dg.classList.remove('is-windowed');
+          }
+        } else {
+          // Detach day-group content when far offscreen to free memory
+          if (!windowedFragments.has(dg) && !dg.classList.contains('filter-hidden') && !dg.classList.contains('search-hidden')) {
+            const h = dg.offsetHeight;
+            if (h > 60) {
+              const fragment = document.createDocumentFragment();
+              while (dg.firstChild) {
+                fragment.appendChild(dg.firstChild);
+              }
+              windowedFragments.set(dg, fragment);
+              dg.style.minHeight = h + 'px';
+              dg.classList.add('is-windowed');
+            }
+          }
+        }
+      });
+    }, {
+      root: null,
+      rootMargin: '1200px 0px 1200px 0px' // Buffer of ~2 screens above and below
+    });
+
+    dayGroups.forEach(dg => windowingObserver.observe(dg));
+  }
+
+  function restoreAllWindowed() {
+    for (const [dg, frag] of windowedFragments.entries()) {
+      dg.appendChild(frag);
+      dg.style.minHeight = '';
+      dg.classList.remove('is-windowed');
+    }
+    windowedFragments.clear();
+  }
+
+  window.addEventListener('beforeprint', restoreAllWindowed);
+
+  if (window.requestIdleCallback) {
+    requestIdleCallback(initVirtualScroller);
+  } else {
+    setTimeout(initVirtualScroller, 400);
+  }
 
 })();

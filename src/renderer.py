@@ -79,10 +79,10 @@ def build_bubble(
 ) -> str:
     """Build the HTML for a single message bubble (one sender, one or more sub-messages)."""
     avatar = (
-        f'<div class="avatar" style="background:{color};" title="{html.escape(sender)}">'
+        f'<div class="avatar" title="{html.escape(sender)}">'
         f'{html.escape(initials)}</div>'
     )
-    sender_label = f'<div class="sender" style="color:{color};">{html.escape(sender)}</div>'
+    sender_label = f'<div class="sender">{html.escape(sender)}</div>'
     me_class = " is-me" if is_me else ""
     media_attr = "true" if has_media else "false"
     month_attr = f' data-month="{html.escape(month)}"' if month else ""
@@ -330,7 +330,11 @@ def build_html(
 
     attendees_header = ' &amp; '.join(html.escape(a) for a in attendees)
 
-    style_content = load_template_file("style.css")
+    participant_css = "\n".join(
+        f'.message-row[data-sender="{html.escape(name, quote=True)}"] {{ --user-color: {color}; }}'
+        for name, color in color_map.items()
+    )
+    style_content = load_template_file("style.css") + "\n\n/* Dynamic Participant Color Variables */\n" + participant_css
     script_content = load_template_file("app.js")
     base_html = load_template_file("base.html")
 

@@ -541,6 +541,7 @@ body.dark-mode.wallpaper-on::before {
     font-weight: bold;
     color: #fff;
     flex-shrink: 0;
+    background: var(--user-color, #128C7E);
 }
 
 .message-row.is-me .avatar {
@@ -572,6 +573,7 @@ body.dark-mode.wallpaper-on::before {
     font-weight: bold;
     font-size: 13px;
     margin-bottom: 4px;
+    color: var(--user-color, #128C7E);
 }
 
 .message-row.is-me .sender {
