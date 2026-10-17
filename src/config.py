@@ -38,6 +38,9 @@ def find_chat_txt(directory: str) -> str | None:
 
 def prompt_user(label: str, default: str = "") -> str:
     """Ask the user for a value with tab-completion when available."""
+    import sys
+    if not sys.stdin or not hasattr(sys.stdin, "isatty") or not sys.stdin.isatty():
+        return default
     try:
         import readline
         readline.set_completer_delims(" \t\n")
@@ -45,8 +48,12 @@ def prompt_user(label: str, default: str = "") -> str:
     except ImportError:
         pass
     hint = f"  [{default}]" if default else ""
-    value = input(f"  {label}{hint} : ").strip()
+    try:
+        value = input(f"  {label}{hint} : ").strip()
+    except (EOFError, OSError, KeyboardInterrupt):
+        return default
     return value if value else default
+
 
 
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:
@@ -162,7 +169,10 @@ def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str |
 
     if media_dir is None:
         guess = os.path.join(os.path.dirname(os.path.abspath(chat_file)), "media")
-        print(f"\n📂 Dossier des médias introuvable automatiquement.")
-        media_dir = prompt_user("Dossier des médias (Entrée pour ignorer)", guess)
+        if not os.path.isfile(chat_file) or args.chat or args.dir:
+            media_dir = guess
+        else:
+            print(f"\n📂 Dossier des médias introuvable automatiquement.")
+            media_dir = prompt_user("Dossier des médias (Entrée pour ignorer)", guess)
 
     return chat_file, media_dir, output_file, me_user

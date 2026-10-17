@@ -1,8 +1,9 @@
 """HTML generation and message rendering for WhatsApp conversations."""
 
 import html
+import json
 import os
-from src.constants import AVATAR_COLORS
+from src.constants import AVATAR_COLORS, URL_PATTERN
 from src.parser import (
     format_day_label,
     is_system_message,
@@ -35,30 +36,33 @@ def render_attachment(filename: str, media_dir: str, output_dir: str = "") -> st
         rel_media_dir = media_dir.replace("\\", "/")
 
     filepath = f"{rel_media_dir}/{filename}".replace("//", "/")
+    esc_filepath = html.escape(filepath, quote=True)
     parts = filename.split("-")
+
     file_type = parts[1].upper() if len(parts) >= 2 else ""
 
     if file_type == "STICKER":
-        return f'<img src="{filepath}" class="sticker-img" alt="Sticker" loading="lazy" decoding="async">'
+        return f'<img src="{esc_filepath}" class="sticker-img" alt="Sticker" loading="lazy" decoding="async">'
     if filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-        return f'<img src="{filepath}" class="media-img" alt="Image" loading="lazy" decoding="async">'
+        return f'<img src="{esc_filepath}" class="media-img" alt="Image" loading="lazy" decoding="async">'
     if filename.lower().endswith(".webp"):
-        return f'<img src="{filepath}" class="sticker-img" alt="Sticker" loading="lazy" decoding="async">'
+        return f'<img src="{esc_filepath}" class="sticker-img" alt="Sticker" loading="lazy" decoding="async">'
     if filename.lower().endswith((".mp4", ".mov", ".3gp")):
         return (
             f'<video controls preload="none" class="media-video">'
-            f'<source src="{filepath}">Vidéo non supportée.</video>'
+            f'<source src="{esc_filepath}">Vidéo non supportée.</video>'
         )
     if filename.lower().endswith((".opus", ".mp3", ".ogg", ".m4a", ".aac")):
         return (
             f'<div class="audio-container">'
-            f'<audio controls preload="none" src="{filepath}"></audio>'
+            f'<audio controls preload="none" src="{esc_filepath}"></audio>'
             f'<button type="button" class="audio-speed-btn" onclick="toggleAudioSpeed(this)" title="Changer la vitesse (1x, 1.5x, 2x)">1x</button>'
             f'</div>'
         )
     if filename.lower().endswith(".pdf"):
-        return f'<a href="{filepath}" target="_blank">📄 {html.escape(filename)}</a>'
-    return f'<a href="{filepath}">📎 {html.escape(filename)}</a>'
+        return f'<a href="{esc_filepath}" target="_blank">📄 {html.escape(filename)}</a>'
+    return f'<a href="{esc_filepath}">📎 {html.escape(filename)}</a>'
+
 
 
 def build_bubble(
@@ -81,6 +85,63 @@ def build_bubble(
         f'<div class="message">{sender_label}{"".join(group_texts)}</div>'
         f'</div>'
     )
+
+
+def _collect_gallery_data(
+    messages: list[dict],
+    media_dir: str,
+    output_dir: str = "",
+) -> dict:
+    """Collect gallery items (photos, audios, docs, links) from parsed messages.
+
+    Returns a dict with keys: photos, audios, docs, links.
+    """
+    if output_dir:
+        rel_media = os.path.relpath(media_dir, output_dir).replace("\\", "/")
+    else:
+        rel_media = media_dir.replace("\\", "/")
+
+    gallery_photos: list[dict] = []
+    gallery_audios: list[dict] = []
+    gallery_docs: list[dict] = []
+    gallery_links: list[dict] = []
+
+    for idx, msg in enumerate(messages):
+        if is_system_message(msg["content"]):
+            continue
+        clean_content, _ = strip_annotations(msg["content"])
+        sender = msg["sender"]
+        time_str = msg["dt"].strftime("%d/%m/%Y %H:%M") if msg.get("dt") else msg["date"]
+        fname = get_attachment_filename(clean_content)
+        msg_id = f"msg-{idx}"
+
+        if fname:
+            filepath = f"{rel_media}/{fname}".replace("//", "/")
+            if fname.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
+                gallery_photos.append({"src": filepath, "sender": sender, "time": time_str, "msgId": msg_id})
+            elif fname.lower().endswith(".webp"):
+                # webp are stickers – include in photos tab but mark as sticker
+                gallery_photos.append({"src": filepath, "sender": sender, "time": time_str, "sticker": True, "msgId": msg_id})
+            elif fname.lower().endswith((".mp4", ".mov", ".3gp")):
+                gallery_photos.append({"src": filepath, "sender": sender, "time": time_str, "video": True, "msgId": msg_id})
+            elif fname.lower().endswith((".opus", ".mp3", ".ogg", ".m4a", ".aac")):
+                gallery_audios.append({"src": filepath, "sender": sender, "time": time_str, "msgId": msg_id})
+            elif fname.lower().endswith(".pdf"):
+                gallery_docs.append({"href": filepath, "label": fname, "sender": sender, "time": time_str, "msgId": msg_id})
+            else:
+                gallery_docs.append({"href": filepath, "label": fname, "sender": sender, "time": time_str, "msgId": msg_id})
+        else:
+            # Extract URLs from plain-text messages
+            found_urls = URL_PATTERN.findall(clean_content)
+            for url in found_urls:
+                gallery_links.append({"href": url, "label": url, "sender": sender, "time": time_str, "msgId": msg_id})
+
+    return {
+        "photos": gallery_photos,
+        "audios": gallery_audios,
+        "docs": gallery_docs,
+        "links": gallery_links,
+    }
 
 
 def render_grouped_messages(
@@ -118,7 +179,7 @@ def render_grouped_messages(
             if day_key != last_day:
                 last_day = day_key
                 grouped_html.append(
-                    f'<div class="date-separator">'
+                    f'<div class="date-separator" data-date="{day_key}">'
                     f'<span>{format_day_label(msg_dt)}</span>'
                     f'</div>'
                 )
@@ -204,6 +265,16 @@ def build_html(
         messages, media_dir, color_map, output_dir=output_dir, me_user=resolved_me
     )
 
+    # Collect gallery data (photos, audios, docs, links)
+    gallery_data = _collect_gallery_data(messages, media_dir, output_dir=output_dir)
+    gallery_data_json = json.dumps(gallery_data, ensure_ascii=False)
+    total_media_count = (
+        len(gallery_data["photos"])
+        + len(gallery_data["audios"])
+        + len(gallery_data["docs"])
+        + len(gallery_data["links"])
+    )
+
     stats = compute_stats(messages)
     stats_html = render_stats_html(stats, color_map)
 
@@ -246,6 +317,8 @@ def build_html(
         "{{ grouped_html }}": grouped_html,
         "{{ stats_html }}": stats_html,
         "{{ script }}": script_content,
+        "{{ gallery_data }}": gallery_data_json,
+        "{{ media_count }}": str(total_media_count),
     }
 
     result = base_html

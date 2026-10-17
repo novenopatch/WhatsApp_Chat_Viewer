@@ -89,5 +89,142 @@ class TestRenderer(unittest.TestCase):
         self.assertIn("Alice", page)
 
 
+    def test_render_attachment_relative_output_dir(self):
+        html_out = render_attachment("photo.jpg", "/tmp/export/media", output_dir="/tmp/export/html")
+        self.assertIn('src="../media/photo.jpg"', html_out)
+
+    def test_render_attachment_pdf_and_other(self):
+        pdf_out = render_attachment("doc.pdf", "media")
+        self.assertIn('📄 doc.pdf', pdf_out)
+        self.assertIn('target="_blank"', pdf_out)
+
+        zip_out = render_attachment("archive.zip", "media")
+        self.assertIn('📎 archive.zip', zip_out)
+
+    def test_render_grouped_messages_date_change(self):
+        messages = [
+            {"date": "15/10/24 10:00:00", "sender": "Alice", "content": "Jour 1", "dt": datetime(2024, 10, 15, 10, 0, 0)},
+            {"date": "16/10/24 10:00:00", "sender": "Alice", "content": "Jour 2", "dt": datetime(2024, 10, 16, 10, 0, 0)},
+        ]
+        html_out, _, _ = render_grouped_messages(messages, "media", {"Alice": "#123"})
+        self.assertEqual(html_out.count('class="date-separator"'), 2)
+        # Should be two separate bubbles because the day changed
+        self.assertEqual(html_out.count('data-sender="Alice"'), 2)
+
+    def test_render_grouped_messages_system_message_interruption(self):
+        messages = [
+            {"date": "15/10/24 10:00:00", "sender": "Alice", "content": "Avant système", "dt": datetime(2024, 10, 15, 10, 0, 0)},
+            {"date": "15/10/24 10:01:00", "sender": "Système", "content": "Appel vocal manqué", "dt": datetime(2024, 10, 15, 10, 1, 0)},
+            {"date": "15/10/24 10:02:00", "sender": "Alice", "content": "Après système", "dt": datetime(2024, 10, 15, 10, 2, 0)},
+        ]
+        html_out, _, _ = render_grouped_messages(messages, "media", {"Alice": "#123", "Système": "#999"})
+        self.assertIn('class="system-message"', html_out)
+        # Should be 2 distinct bubbles for Alice separated by the system pill
+        self.assertEqual(html_out.count('data-sender="Alice"'), 2)
+
+    def test_build_html_empty_messages(self):
+        page = build_html([], "media")
+        self.assertIn("Aucun message", page)
+
+    def test_build_html_group_vs_duo(self):
+        # 2 participants -> Conversation WhatsApp
+        duo = [
+            {"date": "15/10/24 10:00:00", "sender": "Alice", "content": "Hi", "dt": datetime(2024, 10, 15, 10, 0, 0)},
+            {"date": "15/10/24 10:01:00", "sender": "Bob", "content": "Hello", "dt": datetime(2024, 10, 15, 10, 1, 0)},
+        ]
+        html_duo = build_html(duo, "media")
+        self.assertIn("Conversation WhatsApp - Alice &amp; Bob", html_duo)
+
+        # 3 participants -> Conversation de groupe WhatsApp
+        group = duo + [{"date": "15/10/24 10:02:00", "sender": "Charlie", "content": "Yo", "dt": datetime(2024, 10, 15, 10, 2, 0)}]
+        html_group = build_html(group, "media")
+        self.assertIn("Conversation de groupe WhatsApp - Alice &amp; Bob &amp; Charlie", html_group)
+
+    def test_build_html_all_placeholders_replaced(self):
+        messages = [
+            {"date": "15/10/24 10:00:00", "sender": "Alice", "content": "Test", "dt": datetime(2024, 10, 15, 10, 0, 0)}
+        ]
+        page = build_html(messages, "media", me_user="Alice")
+        self.assertNotIn("{{", page)
+        self.assertNotIn("}}", page)
+
+    def test_build_html_me_selector_and_legend(self):
+        messages = [
+            {"date": "15/10/24 10:00:00", "sender": "Alice", "content": "Hi", "dt": datetime(2024, 10, 15, 10, 0, 0)},
+            {"date": "15/10/24 10:01:00", "sender": "Bob", "content": "Hey", "dt": datetime(2024, 10, 15, 10, 1, 0)},
+        ]
+        page = build_html(messages, "media", me_user="Alice")
+        self.assertIn('<option value="Alice" selected="selected">Alice</option>', page)
+        self.assertIn('<option value="Bob">Bob</option>', page)
+        self.assertIn('setMeUser(\'Alice\')', page)
+        self.assertIn('setMeUser(\'Bob\')', page)
+
+
+    def test_gallery_data_collection_and_rendering(self):
+        import json
+        messages = [
+            {"date": "15/10/24 10:00:00", "sender": "Alice", "content": "Regarde la photo : pièce jointe : img1.jpg", "dt": datetime(2024, 10, 15, 10, 0, 0)},
+            {"date": "15/10/24 10:01:00", "sender": "Bob", "content": "Voici la vidéo : pièce jointe : vid1.mp4", "dt": datetime(2024, 10, 15, 10, 1, 0)},
+            {"date": "15/10/24 10:02:00", "sender": "Bob", "content": "Note vocale : pièce jointe : voice.opus", "dt": datetime(2024, 10, 15, 10, 2, 0)},
+            {"date": "15/10/24 10:03:00", "sender": "Alice", "content": "Doc PDF : pièce jointe : report.pdf", "dt": datetime(2024, 10, 15, 10, 3, 0)},
+            {"date": "15/10/24 10:04:00", "sender": "Alice", "content": "Lien utile : https://google.com/test", "dt": datetime(2024, 10, 15, 10, 4, 0)},
+        ]
+        html_page = build_html(messages, "media", me_user="Alice")
+        self.assertIn('id="gallery-modal"', html_page)
+        self.assertIn('id="gallery-data"', html_page)
+        self.assertIn('id="gallery-count-badge"', html_page)
+
+        # Check gallery-data JSON content
+        data_script = html_page.split('id="gallery-data" type="application/json">')[1].split('</script>')[0]
+        data = json.loads(data_script)
+        self.assertEqual(len(data["photos"]), 2)  # img1.jpg and vid1.mp4
+        self.assertTrue(data["photos"][1]["video"])
+        self.assertEqual(len(data["audios"]), 1)  # voice.opus
+        self.assertEqual(len(data["docs"]), 1)    # report.pdf
+        self.assertEqual(len(data["links"]), 1)   # google.com
+
+        # Check msgId present for jump-to-message
+        for category in ("photos", "audios", "docs", "links"):
+            for item in data[category]:
+                self.assertTrue(item.get("msgId", "").startswith("msg-"))
+
+    def test_advanced_filters_dom_and_attributes(self):
+        messages = [
+            {"date": "15/10/24 10:00:00", "sender": "Alice", "content": "Salut", "dt": datetime(2024, 10, 15, 10, 0, 0)},
+            {"date": "15/10/24 10:05:00", "sender": "Bob", "content": "Photo : pièce jointe : test.png", "dt": datetime(2024, 10, 15, 10, 5, 0)},
+        ]
+        html_page = build_html(messages, "media", me_user="Alice")
+        # Check filter bar elements
+        self.assertIn('id="filter-bar"', html_page)
+        self.assertIn('id="filter-sender"', html_page)
+        self.assertIn('id="filter-month"', html_page)
+        self.assertIn('id="filter-media-only"', html_page)
+        self.assertIn('id="filter-reset"', html_page)
+
+        # Check date separator and message row data attributes
+        self.assertIn('class="date-separator" data-date="2024-10-15" data-month="2024-10"', html_page)
+        self.assertIn('data-has-media="true"', html_page)
+        self.assertIn('data-has-media="false"', html_page)
+
+    def test_whatsapp_doodle_wallpaper_and_lightbox_features(self):
+        messages = [
+            {"date": "15/10/24 10:00:00", "sender": "Alice", "content": "Clip : pièce jointe : movie.mp4", "dt": datetime(2024, 10, 15, 10, 0, 0)}
+        ]
+        html_page = build_html(messages, "media", me_user="Alice")
+        # Wallpaper button and CSS
+        self.assertIn('id="wallpaper-toggle"', html_page)
+        self.assertIn('body.wallpaper-on', html_page)
+        self.assertIn('body.dark-mode.wallpaper-on', html_page)
+
+        # Lightbox elements: image, video, fullscreen button
+        self.assertIn('id="lightbox"', html_page)
+        self.assertIn('id="lightbox-img"', html_page)
+        self.assertIn('id="lightbox-video"', html_page)
+        self.assertIn('id="lb-fullscreen"', html_page)
+        self.assertIn('class="video-fs-btn"', html_page)
+
+
 if __name__ == "__main__":
     unittest.main()
+
+

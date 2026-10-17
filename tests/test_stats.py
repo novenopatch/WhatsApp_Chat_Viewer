@@ -57,6 +57,51 @@ class TestStats(unittest.TestCase):
         self.assertIn("Activité par heure", html_out)
         self.assertIn("Médias échangés", html_out)
 
+    def test_compute_stats_empty(self):
+        stats = compute_stats([])
+        self.assertEqual(stats["total"], 0)
+        self.assertEqual(stats["real_total"], 0)
+        self.assertEqual(len(stats["sender_counts"]), 0)
+        self.assertEqual(stats["most_active"], ("", 0))
+
+        # Ensure render_stats_html does not crash with ZeroDivisionError on empty stats
+        html_out = render_stats_html(stats, {})
+        self.assertIn("Statistiques de la conversation", html_out)
+        self.assertIn("Aucun média", html_out)
+        self.assertIn("N/A", html_out)
+
+    def test_compute_stats_all_system_messages(self):
+        messages = [
+            {"date": "01/01/24 10:00:00", "sender": "Système", "content": "Les messages sont chiffrés de bout en bout.", "dt": None},
+            {"date": "01/01/24 10:01:00", "sender": "Système", "content": "Appel vocal manqué", "dt": None},
+        ]
+        stats = compute_stats(messages)
+        self.assertEqual(stats["total"], 2)
+        self.assertEqual(stats["real_total"], 0)
+
+        html_out = render_stats_html(stats, {})
+        self.assertIn("0</strong>", html_out)
+
+    def test_compute_stats_missing_dt(self):
+        messages = [
+            {"date": "date_invalide", "sender": "Alice", "content": "Hello", "dt": None},
+            {"date": "date_invalide_2", "sender": "Alice", "content": "pièce jointe : clip.mp4", "dt": None},
+        ]
+        stats = compute_stats(messages)
+        self.assertEqual(stats["total"], 2)
+        self.assertEqual(stats["real_total"], 2)
+        self.assertEqual(len(stats["hour_counts"]), 0)
+        self.assertEqual(stats["media_counts"]["🎬 Vidéo"], 1)
+
+    def test_render_stats_html_unknown_sender_color(self):
+        messages = [{"date": "01/01/24 10:00:00", "sender": "Inconnu", "content": "Test", "dt": None}]
+        stats = compute_stats(messages)
+        # Empty color_map: should use fallback color #128C7E
+        html_out = render_stats_html(stats, {})
+        self.assertIn("#128C7E", html_out)
+        self.assertIn("Inconnu", html_out)
+
 
 if __name__ == "__main__":
     unittest.main()
+
