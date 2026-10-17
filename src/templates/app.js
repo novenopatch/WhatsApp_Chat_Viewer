@@ -115,40 +115,104 @@
     }
   }
 
-  function runSearch(query) {
+  // -------------------------------------------------------------------------
+  // Offscreen Web Worker Search Engine (zero frame drops during typing)
+  // -------------------------------------------------------------------------
+  let searchWorker = null;
+  let textIndex = null;
+
+  try {
+    const workerBlob = new Blob([`
+      let index = [];
+      self.onmessage = function(e) {
+        if (e.data.action === 'init') {
+          index = e.data.items || [];
+        } else if (e.data.action === 'search') {
+          const q = (e.data.query || '').toLowerCase();
+          const matches = [];
+          if (q) {
+            for (let i = 0; i < index.length; i++) {
+              if (index[i].text.includes(q)) {
+                matches.push(index[i].id);
+              }
+            }
+          }
+          self.postMessage({ action: 'result', query: e.data.query, matchIds: matches });
+        }
+      };
+    `], { type: 'application/javascript' });
+    searchWorker = new Worker(URL.createObjectURL(workerBlob));
+    searchWorker.onmessage = function(e) {
+      if (e.data.action === 'result') {
+        applySearchResults(e.data.query, e.data.matchIds);
+      }
+    };
+  } catch (err) {
+    searchWorker = null;
+  }
+
+  function buildTextIndex() {
+    if (textIndex || !chatContainer) return;
+    textIndex = [];
+    const subMessages = chatContainer.querySelectorAll('.sub-message');
+    for (let i = 0; i < subMessages.length; i++) {
+      const sm = subMessages[i];
+      const textEl = sm.querySelector('.text');
+      if (textEl && sm.id) {
+        textIndex.push({ id: sm.id, text: textEl.textContent.toLowerCase() });
+      }
+    }
+    if (searchWorker && textIndex.length > 0) {
+      searchWorker.postMessage({ action: 'init', items: textIndex });
+    }
+  }
+
+  if (window.requestIdleCallback) {
+    requestIdleCallback(buildTextIndex);
+  } else {
+    setTimeout(buildTextIndex, 300);
+  }
+
+  function applySearchResults(q, matchIds) {
     clearHighlights();
     searchMatches = [];
     currentMatchIdx = -1;
 
-    const q = query ? query.trim() : '';
     if (!q) {
       clearSearch();
       return;
     }
 
-    const qLower = q.toLowerCase();
     const regex = new RegExp('(' + escapeRegex(q) + ')', 'gi');
-
-    // 1. Fast pre-filter: iterate over text elements without altering DOM of non-matches
     const matchingRows = new Set();
-    const textEls = chatContainer.querySelectorAll('.sub-message .text');
-    for (let i = 0; i < textEls.length; i++) {
-      const el = textEls[i];
-      if (el.textContent.toLowerCase().includes(qLower)) {
-        highlightInElement(el, regex);
-        const row = el.closest('.message-row');
+    const idSet = new Set(matchIds);
+
+    for (let i = 0; i < matchIds.length; i++) {
+      const sm = document.getElementById(matchIds[i]);
+      if (sm) {
+        const textEl = sm.querySelector('.text');
+        if (textEl) highlightInElement(textEl, regex);
+        const row = sm.closest('.message-row');
         if (row) matchingRows.add(row);
       }
     }
 
-    // 2. Hide / show message rows based on whether they contain a match
+    // Hide / show message rows
     const rows = chatContainer.querySelectorAll('.message-row');
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       row.classList.toggle('search-hidden', !matchingRows.has(row));
     }
 
-    // 3. Hide / show date separators
+    // Hide / show day-groups
+    const dayGroups = chatContainer.querySelectorAll('.day-group');
+    for (let i = 0; i < dayGroups.length; i++) {
+      const dg = dayGroups[i];
+      const hasVisible = !!dg.querySelector('.message-row:not(.search-hidden)');
+      dg.classList.toggle('search-hidden', !hasVisible);
+    }
+
+    // Hide / show standalone date separators if any
     const separators = chatContainer.querySelectorAll('.date-separator');
     for (let i = 0; i < separators.length; i++) {
       const sep = separators[i];
@@ -164,7 +228,77 @@
       sep.classList.toggle('search-hidden', !hasVisibleChild);
     }
 
-    // 4. Collect matches
+    // Collect matches
+    searchMatches = Array.from(chatContainer.querySelectorAll('mark.wa-highlight'));
+    if (btnPrev) btnPrev.disabled = (searchMatches.length === 0);
+    if (btnNext) btnNext.disabled = (searchMatches.length === 0);
+
+    if (searchMatches.length > 0) {
+      goToMatch(0);
+    } else {
+      if (searchCount) searchCount.textContent = 'Aucun résultat';
+    }
+  }
+
+  function runSearch(query) {
+    const q = query ? query.trim() : '';
+    if (!q) {
+      clearSearch();
+      return;
+    }
+
+    if (searchWorker && textIndex && textIndex.length > 0) {
+      searchWorker.postMessage({ action: 'search', query: q });
+      return;
+    }
+
+    // Fast synchronous fallback
+    clearHighlights();
+    searchMatches = [];
+    currentMatchIdx = -1;
+
+    const qLower = q.toLowerCase();
+    const regex = new RegExp('(' + escapeRegex(q) + ')', 'gi');
+
+    const matchingRows = new Set();
+    const textEls = chatContainer.querySelectorAll('.sub-message .text');
+    for (let i = 0; i < textEls.length; i++) {
+      const el = textEls[i];
+      if (el.textContent.toLowerCase().includes(qLower)) {
+        highlightInElement(el, regex);
+        const row = el.closest('.message-row');
+        if (row) matchingRows.add(row);
+      }
+    }
+
+    const rows = chatContainer.querySelectorAll('.message-row');
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      row.classList.toggle('search-hidden', !matchingRows.has(row));
+    }
+
+    const dayGroups = chatContainer.querySelectorAll('.day-group');
+    for (let i = 0; i < dayGroups.length; i++) {
+      const dg = dayGroups[i];
+      const hasVisible = !!dg.querySelector('.message-row:not(.search-hidden)');
+      dg.classList.toggle('search-hidden', !hasVisible);
+    }
+
+    const separators = chatContainer.querySelectorAll('.date-separator');
+    for (let i = 0; i < separators.length; i++) {
+      const sep = separators[i];
+      let next = sep.nextElementSibling;
+      let hasVisibleChild = false;
+      while (next && !next.classList.contains('date-separator')) {
+        if (!next.classList.contains('search-hidden')) {
+          hasVisibleChild = true;
+          break;
+        }
+        next = next.nextElementSibling;
+      }
+      sep.classList.toggle('search-hidden', !hasVisibleChild);
+    }
+
     searchMatches = Array.from(chatContainer.querySelectorAll('mark.wa-highlight'));
     if (btnPrev) btnPrev.disabled = (searchMatches.length === 0);
     if (btnNext) btnNext.disabled = (searchMatches.length === 0);
@@ -437,14 +571,47 @@
     btn.classList.toggle('speed-boosted', newSpeed > 1);
   };
 
+  // -------------------------------------------------------------------------
+  // Singleton Audio Manager (coordinates single active playback, zero pipeline leaks)
+  // -------------------------------------------------------------------------
+  let activeAudio = null;
+
   document.addEventListener('play', function(e) {
     if (e.target && e.target.tagName === 'AUDIO') {
-      const sp = parseFloat(e.target.dataset.speed || 1);
+      const audio = e.target;
+      if (activeAudio && activeAudio !== audio) {
+        activeAudio.pause();
+      }
+      activeAudio = audio;
+      const sp = parseFloat(audio.dataset.speed || 1);
       if (sp && sp !== 1) {
-        e.target.playbackRate = sp;
+        audio.playbackRate = sp;
       }
     }
   }, true);
+
+  document.addEventListener('pause', function(e) {
+    if (e.target && e.target === activeAudio) {
+      activeAudio = null;
+    }
+  }, true);
+
+  // Delegated handler for speed buttons and fullscreen video buttons
+  if (chatContainer) {
+    chatContainer.addEventListener('click', function(e) {
+      const speedBtn = e.target.closest('.audio-speed-btn');
+      if (speedBtn) {
+        toggleAudioSpeed(speedBtn);
+        return;
+      }
+      const fsBtn = e.target.closest('.video-fs-btn');
+      if (fsBtn) {
+        const vid = fsBtn.previousElementSibling;
+        if (vid && vid.requestFullscreen) vid.requestFullscreen();
+        return;
+      }
+    });
+  }
 
   // -------------------------------------------------------------------------
   // Dark Mode Management
@@ -684,6 +851,14 @@
         if (show) visibleCount++;
       }
 
+      // Hide day-groups that have no visible children
+      const dayGroups = chatContainer ? chatContainer.querySelectorAll('.day-group') : [];
+      for (let i = 0; i < dayGroups.length; i++) {
+        const dg = dayGroups[i];
+        const hasVisible = !!dg.querySelector('.message-row:not(.filter-hidden):not(.search-hidden)');
+        dg.classList.toggle('filter-hidden', !hasVisible);
+      }
+
       // Hide date separators that have no visible children
       const separators = chatContainer ? chatContainer.querySelectorAll('.date-separator') : [];
       for (let i = 0; i < separators.length; i++) {
@@ -710,7 +885,8 @@
 
       // Scroll to first visible month
       if (activeMonth) {
-        const firstSep = document.querySelector('.date-separator[data-month="' + activeMonth + '"]:not(.filter-hidden)');
+        const firstSep = document.querySelector('.day-group[data-month="' + activeMonth + '"]:not(.filter-hidden)') ||
+                         document.querySelector('.date-separator[data-month="' + activeMonth + '"]:not(.filter-hidden)');
         if (firstSep) firstSep.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }

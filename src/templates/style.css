@@ -467,21 +467,21 @@ body.dark-mode.wallpaper-on::before {
 }
 
 /* High-performance CSS rendering for large chats */
-.message-row {
+.day-group {
     content-visibility: auto;
-    contain-intrinsic-size: 50px;
+    contain-intrinsic-size: 250px;
+    contain: layout style;
+}
+
+.message-row {
     contain: layout style;
 }
 
 .date-separator {
-    content-visibility: auto;
-    contain-intrinsic-size: 32px;
     contain: layout style;
 }
 
 .system-message {
-    content-visibility: auto;
-    contain-intrinsic-size: 28px;
     contain: layout style;
 }
 

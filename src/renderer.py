@@ -52,14 +52,14 @@ def render_attachment(filename: str, media_dir: str, output_dir: str = "") -> st
             f'<div class="video-container">'
             f'<video controls preload="none" class="media-video">'
             f'<source src="{esc_filepath}">Vidéo non supportée.</video>'
-            f'<button type="button" class="video-fs-btn" onclick="this.previousElementSibling.requestFullscreen()" title="Plein écran">⛶</button>'
+            f'<button type="button" class="video-fs-btn" title="Plein écran">⛶</button>'
             f'</div>'
         )
     if filename.lower().endswith((".opus", ".mp3", ".ogg", ".m4a", ".aac")):
         return (
             f'<div class="audio-container">'
             f'<audio controls preload="none" src="{esc_filepath}"></audio>'
-            f'<button type="button" class="audio-speed-btn" onclick="toggleAudioSpeed(this)" title="Changer la vitesse (1x, 1.5x, 2x)">1x</button>'
+            f'<button type="button" class="audio-speed-btn" title="Changer la vitesse (1x, 1.5x, 2x)">1x</button>'
             f'</div>'
         )
     if filename.lower().endswith(".pdf"):
@@ -172,6 +172,7 @@ def render_grouped_messages(
     start_date = messages[0]["date"]
     end_date = messages[-1]["date"]
     last_day: str | None = None
+    in_day_group = False
     i = 0
 
     while i < len(messages):
@@ -181,11 +182,17 @@ def render_grouped_messages(
         initials = "".join(w[0].upper() for w in current_sender.split()[:2])
         msg_dt = msg.get("dt")
 
-        # ---- Date separator ----
+        # ---- Date separator & Day Group ----
         if msg_dt:
             day_key = msg_dt.strftime("%Y-%m-%d")
             if day_key != last_day:
                 last_day = day_key
+                if in_day_group:
+                    grouped_html.append("</div>")
+                in_day_group = True
+                grouped_html.append(
+                    f'<div class="day-group" data-date="{day_key}" data-month="{day_key[:7]}">'
+                )
                 grouped_html.append(
                     f'<div class="date-separator" data-date="{day_key}" data-month="{day_key[:7]}">'
                     f'<span>{format_day_label(msg_dt)}</span>'
@@ -258,6 +265,9 @@ def render_grouped_messages(
                     month=month_val,
                 )
             )
+
+    if in_day_group:
+        grouped_html.append("</div>")
 
     return "\n".join(grouped_html), attendees, (start_date, end_date)
 
