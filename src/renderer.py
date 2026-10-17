@@ -49,8 +49,11 @@ def render_attachment(filename: str, media_dir: str, output_dir: str = "") -> st
         return f'<img src="{esc_filepath}" class="sticker-img" alt="Sticker" loading="lazy" decoding="async">'
     if filename.lower().endswith((".mp4", ".mov", ".3gp")):
         return (
+            f'<div class="video-container">'
             f'<video controls preload="none" class="media-video">'
             f'<source src="{esc_filepath}">Vidéo non supportée.</video>'
+            f'<button type="button" class="video-fs-btn" onclick="this.previousElementSibling.requestFullscreen()" title="Plein écran">⛶</button>'
+            f'</div>'
         )
     if filename.lower().endswith((".opus", ".mp3", ".ogg", ".m4a", ".aac")):
         return (
@@ -71,6 +74,7 @@ def build_bubble(
     initials: str,
     group_texts: list[str],
     is_me: bool = False,
+    has_media: bool = False,
 ) -> str:
     """Build the HTML for a single message bubble (one sender, one or more sub-messages)."""
     avatar = (
@@ -79,8 +83,9 @@ def build_bubble(
     )
     sender_label = f'<div class="sender" style="color:{color};">{html.escape(sender)}</div>'
     me_class = " is-me" if is_me else ""
+    media_attr = "true" if has_media else "false"
     return (
-        f'<div class="message-row{me_class}" data-sender="{html.escape(sender)}">'
+        f'<div class="message-row{me_class}" data-sender="{html.escape(sender)}" data-has-media="{media_attr}">'
         f'{avatar}'
         f'<div class="message">{sender_label}{"".join(group_texts)}</div>'
         f'</div>'
@@ -179,7 +184,7 @@ def render_grouped_messages(
             if day_key != last_day:
                 last_day = day_key
                 grouped_html.append(
-                    f'<div class="date-separator" data-date="{day_key}">'
+                    f'<div class="date-separator" data-date="{day_key}" data-month="{day_key[:7]}">'
                     f'<span>{format_day_label(msg_dt)}</span>'
                     f'</div>'
                 )
@@ -198,6 +203,7 @@ def render_grouped_messages(
 
         # ---- Regular message group (consecutive messages from same sender) ----
         group_texts: list[str] = []
+        group_has_media = False
 
         while i < len(messages) and messages[i]["sender"] == current_sender:
             cur = messages[i]
@@ -215,6 +221,8 @@ def render_grouped_messages(
             clean_content, was_edited = strip_annotations(cur["content"])
             filename = get_attachment_filename(clean_content)
             has_file = filename is not None
+            if has_file:
+                group_has_media = True
 
             if has_file:
                 content_html = render_attachment(filename, media_dir, output_dir=output_dir)
@@ -236,7 +244,7 @@ def render_grouped_messages(
         if group_texts:
             is_me = bool(me_user and current_sender == me_user)
             grouped_html.append(
-                build_bubble(current_sender, sender_color, initials, group_texts, is_me=is_me)
+                build_bubble(current_sender, sender_color, initials, group_texts, is_me=is_me, has_media=group_has_media)
             )
 
     return "\n".join(grouped_html), attendees, (start_date, end_date)
