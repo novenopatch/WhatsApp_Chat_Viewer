@@ -130,20 +130,22 @@
     const regex = new RegExp('(' + escapeRegex(q) + ')', 'gi');
 
     // 1. Fast pre-filter: iterate over text elements without altering DOM of non-matches
+    const matchingRows = new Set();
     const textEls = chatContainer.querySelectorAll('.sub-message .text');
     for (let i = 0; i < textEls.length; i++) {
       const el = textEls[i];
       if (el.textContent.toLowerCase().includes(qLower)) {
         highlightInElement(el, regex);
+        const row = el.closest('.message-row');
+        if (row) matchingRows.add(row);
       }
     }
 
-    // 2. Hide / show message rows based on whether they contain a mark
+    // 2. Hide / show message rows based on whether they contain a match
     const rows = chatContainer.querySelectorAll('.message-row');
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const hasMark = !!row.querySelector('mark.wa-highlight');
-      row.classList.toggle('search-hidden', !hasMark);
+      row.classList.toggle('search-hidden', !matchingRows.has(row));
     }
 
     // 3. Hide / show date separators
@@ -259,8 +261,13 @@
   const lbFullscreen= document.getElementById('lb-fullscreen');
 
   function attachImageListeners() {
-    document.querySelectorAll('.media-img').forEach(img => {
-      img.onclick = () => openLightbox(img);
+    // Handled via high-performance event delegation on chatContainer
+  }
+
+  if (chatContainer) {
+    chatContainer.addEventListener('click', function(e) {
+      const img = e.target.closest('.media-img');
+      if (img) openLightbox(img);
     });
   }
 
@@ -489,6 +496,7 @@
   // "Me" vs "Others" (Right / Left alignment switcher)
   // -------------------------------------------------------------------------
   let currentMeUser = '';
+  let dynamicMeStyle = null;
 
   window.setMeUser = function(userName) {
     currentMeUser = userName ? userName.trim() : '';
@@ -509,11 +517,61 @@
       item.classList.toggle('legend-active-me', isSelected);
     });
 
-    document.querySelectorAll('.message-row').forEach(row => {
-      const s = row.getAttribute('data-sender') || '';
-      const isMe = currentMeUser && s === currentMeUser;
-      row.classList.toggle('is-me', isMe);
-    });
+    const initialMe = document.body.getAttribute('data-initial-me') || '';
+    if (!dynamicMeStyle) {
+      dynamicMeStyle = document.getElementById('dynamic-me-style');
+      if (!dynamicMeStyle) {
+        dynamicMeStyle = document.createElement('style');
+        dynamicMeStyle.id = 'dynamic-me-style';
+        document.head.appendChild(dynamicMeStyle);
+      }
+    }
+
+    if (currentMeUser === initialMe) {
+      // The HTML generated already has .is-me correctly placed on the elements
+      dynamicMeStyle.textContent = '';
+      return;
+    }
+
+    if (!currentMeUser) {
+      // All aligned to left
+      dynamicMeStyle.textContent = `
+        .message-row { justify-content: flex-start !important; }
+        .message-row .avatar { display: flex !important; }
+        .message-row .sender { display: block !important; }
+        .message-row .message {
+          border-bottom-left-radius: 2px !important;
+          border-bottom-right-radius: 10px !important;
+          background: var(--bubble-received-bg) !important;
+          border-color: var(--bubble-received-border) !important;
+          color: var(--bubble-received-text) !important;
+        }
+      `;
+    } else {
+      const esc = (window.CSS && CSS.escape) ? CSS.escape(currentMeUser) : currentMeUser.replace(/["\\]/g, '\\$&');
+      dynamicMeStyle.textContent = `
+        .message-row { justify-content: flex-start !important; }
+        .message-row .avatar { display: flex !important; }
+        .message-row .sender { display: block !important; }
+        .message-row .message {
+          border-bottom-left-radius: 2px !important;
+          border-bottom-right-radius: 10px !important;
+          background: var(--bubble-received-bg) !important;
+          border-color: var(--bubble-received-border) !important;
+          color: var(--bubble-received-text) !important;
+        }
+        .message-row[data-sender="${esc}"] { justify-content: flex-end !important; }
+        .message-row[data-sender="${esc}"] .avatar { display: none !important; }
+        .message-row[data-sender="${esc}"] .sender { display: none !important; }
+        .message-row[data-sender="${esc}"] .message {
+          border-bottom-left-radius: 10px !important;
+          border-bottom-right-radius: 2px !important;
+          background: var(--bubble-sent-bg) !important;
+          border-color: var(--bubble-sent-border) !important;
+          color: var(--bubble-sent-text) !important;
+        }
+      `;
+    }
   };
 
   const meSelectEl = document.getElementById('me-select');
@@ -566,17 +624,18 @@
     let activeMonth  = '';
     let mediaOnly    = false;
 
-    // Populate sender options from message-rows
-    const senderSet = new Set();
-    document.querySelectorAll('.message-row[data-sender]').forEach(r => {
-      senderSet.add(r.getAttribute('data-sender'));
-    });
-    senderSet.forEach(s => {
-      const opt = document.createElement('option');
-      opt.value = s;
-      opt.textContent = '👤 ' + s;
-      filterSender.appendChild(opt);
-    });
+    // Populate sender options instantly from me-select options
+    const meSelectEl = document.getElementById('me-select');
+    if (meSelectEl) {
+      Array.from(meSelectEl.options).forEach(opt => {
+        if (opt.value) {
+          const sOpt = document.createElement('option');
+          sOpt.value = opt.value;
+          sOpt.textContent = '👤 ' + opt.value;
+          filterSender.appendChild(sOpt);
+        }
+      });
+    }
 
     // Populate month options from date-separators data-date attribute
     const monthMap = new Map();
@@ -601,42 +660,34 @@
     const filterSummary = document.getElementById('filter-summary');
 
     function applyFilters() {
-      const rows = document.querySelectorAll('.message-row');
+      const rows = chatContainer ? chatContainer.querySelectorAll('.message-row') : [];
       let visibleCount = 0;
-      rows.forEach(row => {
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
         let show = true;
         const sender = row.getAttribute('data-sender') || '';
         if (activeSender && sender !== activeSender) show = false;
-        if (mediaOnly) {
-          const hasMedia = row.querySelector('.media-img, .media-video, audio, .sticker-img');
-          if (!hasMedia) show = false;
-        }
-        // Month filter: check data-months or preceding date-separator
-        if (activeMonth && show) {
-          const rowMonths = row.getAttribute('data-months') || '';
-          if (rowMonths) {
-            show = rowMonths.split(',').includes(activeMonth);
+        if (show && mediaOnly && row.getAttribute('data-has-media') !== 'true') show = false;
+        if (show && activeMonth) {
+          const rowMonth = row.getAttribute('data-month');
+          if (rowMonth) {
+            if (rowMonth !== activeMonth) show = false;
           } else {
             let sep = row.previousElementSibling;
             while (sep && !sep.classList.contains('date-separator')) {
               sep = sep.previousElementSibling;
             }
-            if (sep) {
-              const dateVal = sep.getAttribute('data-date');
-              if (dateVal) {
-                const d = new Date(dateVal + 'T12:00:00');
-                const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-                if (key !== activeMonth) show = false;
-              }
-            }
+            if (sep && sep.getAttribute('data-month') !== activeMonth) show = false;
           }
         }
         row.classList.toggle('filter-hidden', !show);
         if (show) visibleCount++;
-      });
+      }
 
       // Hide date separators that have no visible children
-      document.querySelectorAll('.date-separator').forEach(sep => {
+      const separators = chatContainer ? chatContainer.querySelectorAll('.date-separator') : [];
+      for (let i = 0; i < separators.length; i++) {
+        const sep = separators[i];
         let next = sep.nextElementSibling;
         let hasVisible = false;
         while (next && !next.classList.contains('date-separator')) {
@@ -647,7 +698,7 @@
           next = next.nextElementSibling;
         }
         sep.classList.toggle('filter-hidden', !hasVisible);
-      });
+      }
 
       if (filterSummary) {
         if (activeSender || activeMonth || mediaOnly) {
@@ -659,7 +710,7 @@
 
       // Scroll to first visible month
       if (activeMonth) {
-        const firstSep = document.querySelector('.date-separator:not(.filter-hidden)');
+        const firstSep = document.querySelector('.date-separator[data-month="' + activeMonth + '"]:not(.filter-hidden)');
         if (firstSep) firstSep.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }
@@ -720,7 +771,7 @@
   };
 
   // -------------------------------------------------------------------------
-  // Media Gallery
+  // Media Gallery (High-Performance On-Demand Lazy Loading)
   // -------------------------------------------------------------------------
   (function() {
     const galleryModal  = document.getElementById('gallery-modal');
@@ -737,7 +788,7 @@
     const docs   = galleryData.docs   || [];
     const links  = galleryData.links  || [];
 
-    // Update tab counts
+    // Tab counts
     function setTabCount(id, n) {
       const el = document.getElementById(id);
       if (el) el.textContent = n > 0 ? n : '';
@@ -754,144 +805,173 @@
       if (!totalMedia) badge.setAttribute('data-zero', '1');
     }
 
-    // Build photos & videos grid
-    const photoPanel = document.getElementById('gp-photos');
-    if (photoPanel) {
+    // Lazy load state (only render elements when tab is active / requested)
+    const loadedCount = { photos: 0, audios: 0, docs: 0 };
+    const allDocs = docs.map(d => Object.assign({}, d, {type: 'doc'})).concat(links.map(l => Object.assign({}, l, {type: 'link'})));
+
+    function loadMorePhotos(limit = 48) {
+      const photoPanel = document.getElementById('gp-photos');
+      if (!photoPanel) return;
       if (photos.length === 0) {
         photoPanel.innerHTML = '<div class="g-empty">📷 Aucune photo ou vidéo</div>';
-      } else {
-        const grid = document.createElement('div');
+        return;
+      }
+      let grid = photoPanel.querySelector('.g-photo-grid');
+      if (!grid) {
+        grid = document.createElement('div');
         grid.className = 'g-photo-grid';
-        photos.forEach(function(p) {
-          const wrap = document.createElement('div');
-          wrap.className = 'g-thumb-wrap';
-          if (p.video) {
-            wrap.innerHTML =
-              '<video src="' + p.src + '" style="width:100%;height:100%;object-fit:cover" preload="metadata"></video>' +
-              '<div class="g-video-badge">▶️</div>' +
-              '<div class="g-thumb-meta">' + p.sender + ' · ' + p.time + '</div>' +
-              '<button class="g-jump-btn" title="Aller au message">➔</button>';
-            wrap.addEventListener('click', function(e) {
-              if (e.target.classList.contains('g-jump-btn')) {
-                e.stopPropagation();
-                window.jumpToMessage(p.msgId);
-                return;
-              }
-              window.openLightboxVideo(p.src);
-            });
-          } else {
-            const img = document.createElement('img');
-            img.src = p.src;
-            img.loading = 'lazy';
-            img.alt = '';
-            const meta = document.createElement('div');
-            meta.className = 'g-thumb-meta';
-            meta.textContent = p.sender + ' · ' + p.time;
-            const jumpBtn = document.createElement('button');
-            jumpBtn.className = 'g-jump-btn';
-            jumpBtn.title = 'Aller au message';
-            jumpBtn.textContent = '➔';
-            jumpBtn.addEventListener('click', function(e) {
-              e.stopPropagation();
-              window.jumpToMessage(p.msgId);
-            });
-            wrap.appendChild(img);
-            wrap.appendChild(meta);
-            wrap.appendChild(jumpBtn);
-            wrap.addEventListener('click', function(e) {
-              if (e.target !== jumpBtn) openLightbox(img);
-            });
-          }
-          grid.appendChild(wrap);
-        });
         photoPanel.appendChild(grid);
       }
+      const start = loadedCount.photos;
+      const end = Math.min(start + limit, photos.length);
+      for (let i = start; i < end; i++) {
+        const p = photos[i];
+        const wrap = document.createElement('div');
+        wrap.className = 'g-thumb-wrap';
+        if (p.video) {
+          wrap.innerHTML =
+            '<video src="' + p.src + '" style="width:100%;height:100%;object-fit:cover" preload="metadata"></video>' +
+            '<div class="g-video-badge">▶️</div>' +
+            '<div class="g-thumb-meta">' + p.sender + ' · ' + p.time + '</div>' +
+            '<button class="g-jump-btn" title="Aller au message">➔</button>';
+          wrap.addEventListener('click', function(e) {
+            if (e.target.classList.contains('g-jump-btn')) {
+              e.stopPropagation();
+              window.jumpToMessage(p.msgId);
+              return;
+            }
+            window.openLightboxVideo(p.src);
+          });
+        } else {
+          const img = document.createElement('img');
+          img.src = p.src;
+          img.loading = 'lazy';
+          img.alt = '';
+          const meta = document.createElement('div');
+          meta.className = 'g-thumb-meta';
+          meta.textContent = p.sender + ' · ' + p.time;
+          const jumpBtn = document.createElement('button');
+          jumpBtn.className = 'g-jump-btn';
+          jumpBtn.title = 'Aller au message';
+          jumpBtn.textContent = '➔';
+          jumpBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            window.jumpToMessage(p.msgId);
+          });
+          wrap.appendChild(img);
+          wrap.appendChild(meta);
+          wrap.appendChild(jumpBtn);
+          wrap.addEventListener('click', function(e) {
+            if (e.target !== jumpBtn) openLightbox(img);
+          });
+        }
+        grid.appendChild(wrap);
+      }
+      loadedCount.photos = end;
     }
 
-    // Build audio list
-    const audioPanel = document.getElementById('gp-audios');
-    if (audioPanel) {
+    function loadMoreAudios(limit = 25) {
+      const audioPanel = document.getElementById('gp-audios');
+      if (!audioPanel) return;
       if (audios.length === 0) {
         audioPanel.innerHTML = '<div class="g-empty">🎤 Aucune note vocale</div>';
-      } else {
-        const list = document.createElement('div');
+        return;
+      }
+      let list = audioPanel.querySelector('.g-audio-list');
+      if (!list) {
+        list = document.createElement('div');
         list.className = 'g-audio-list';
-        audios.forEach(function(a) {
-          const item = document.createElement('div');
-          item.className = 'g-audio-item';
-          const audio = document.createElement('audio');
-          audio.controls = true;
-          audio.preload = 'none';
-          audio.src = a.src;
-          const metaEl = document.createElement('div');
-          metaEl.className = 'g-audio-meta';
-          metaEl.textContent = '🎤 ' + a.sender + ' · ' + a.time;
-          const jumpBtn = document.createElement('button');
-          jumpBtn.className = 'g-jump-link';
-          jumpBtn.textContent = 'Aller au message ➔';
-          jumpBtn.addEventListener('click', function() { window.jumpToMessage(a.msgId); });
-          item.appendChild(audio);
-          item.appendChild(metaEl);
-          item.appendChild(jumpBtn);
-          list.appendChild(item);
-        });
         audioPanel.appendChild(list);
       }
+      const start = loadedCount.audios;
+      const end = Math.min(start + limit, audios.length);
+      for (let i = start; i < end; i++) {
+        const a = audios[i];
+        const item = document.createElement('div');
+        item.className = 'g-audio-item';
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.preload = 'none';
+        audio.src = a.src;
+        const metaEl = document.createElement('div');
+        metaEl.className = 'g-audio-meta';
+        metaEl.textContent = '🎤 ' + a.sender + ' · ' + a.time;
+        const jumpBtn = document.createElement('button');
+        jumpBtn.className = 'g-jump-link';
+        jumpBtn.textContent = 'Aller au message ➔';
+        jumpBtn.addEventListener('click', function() { window.jumpToMessage(a.msgId); });
+        item.appendChild(audio);
+        item.appendChild(metaEl);
+        item.appendChild(jumpBtn);
+        list.appendChild(item);
+      }
+      loadedCount.audios = end;
     }
 
-    // Build docs & links list
-    const docPanel = document.getElementById('gp-docs');
-    if (docPanel) {
-      const allItems = docs.map(function(d) { return Object.assign({}, d, {type: 'doc'}); })
-                      .concat(links.map(function(l) { return Object.assign({}, l, {type: 'link'}); }));
-      if (allItems.length === 0) {
+    function loadMoreDocs(limit = 40) {
+      const docPanel = document.getElementById('gp-docs');
+      if (!docPanel) return;
+      if (allDocs.length === 0) {
         docPanel.innerHTML = '<div class="g-empty">📄 Aucun document ou lien</div>';
-      } else {
-        const list = document.createElement('div');
+        return;
+      }
+      let list = docPanel.querySelector('.g-doc-list');
+      if (!list) {
+        list = document.createElement('div');
         list.className = 'g-doc-list';
-        allItems.forEach(function(item) {
-          const itemWrap = document.createElement('div');
-          itemWrap.style.display = 'flex';
-          itemWrap.style.flexDirection = 'column';
-          itemWrap.style.gap = '2px';
-
-          const a = document.createElement('a');
-          a.className = 'g-doc-item';
-          a.href = item.href || '#';
-          a.target = '_blank';
-          a.rel = 'noopener noreferrer';
-          const icon = item.type === 'doc' ? '📄' : '🔗';
-          const label = item.label || item.href || '';
-          const iconEl = document.createElement('span');
-          iconEl.className = 'g-doc-icon';
-          iconEl.textContent = icon;
-          const info = document.createElement('div');
-          info.className = 'g-doc-info';
-          const labelEl = document.createElement('div');
-          labelEl.className = 'g-doc-label';
-          labelEl.textContent = label;
-          const metaEl = document.createElement('div');
-          metaEl.className = 'g-doc-meta';
-          metaEl.textContent = item.sender + ' · ' + item.time;
-          info.appendChild(labelEl);
-          info.appendChild(metaEl);
-          a.appendChild(iconEl);
-          a.appendChild(info);
-
-          const jumpBtn = document.createElement('button');
-          jumpBtn.className = 'g-jump-link';
-          jumpBtn.textContent = 'Aller au message ➔';
-          jumpBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            window.jumpToMessage(item.msgId);
-          });
-
-          itemWrap.appendChild(a);
-          itemWrap.appendChild(jumpBtn);
-          list.appendChild(itemWrap);
-        });
         docPanel.appendChild(list);
       }
+      const start = loadedCount.docs;
+      const end = Math.min(start + limit, allDocs.length);
+      for (let i = start; i < end; i++) {
+        const item = allDocs[i];
+        const itemWrap = document.createElement('div');
+        itemWrap.style.display = 'flex';
+        itemWrap.style.flexDirection = 'column';
+        itemWrap.style.gap = '2px';
+
+        const a = document.createElement('a');
+        a.className = 'g-doc-item';
+        a.href = item.href || '#';
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        const icon = item.type === 'doc' ? '📄' : '🔗';
+        const label = item.label || item.href || '';
+        const iconEl = document.createElement('span');
+        iconEl.className = 'g-doc-icon';
+        iconEl.textContent = icon;
+        const info = document.createElement('div');
+        info.className = 'g-doc-info';
+        const labelEl = document.createElement('div');
+        labelEl.className = 'g-doc-label';
+        labelEl.textContent = label;
+        const metaEl = document.createElement('div');
+        metaEl.className = 'g-doc-meta';
+        metaEl.textContent = item.sender + ' · ' + item.time;
+        info.appendChild(labelEl);
+        info.appendChild(metaEl);
+        a.appendChild(iconEl);
+        a.appendChild(info);
+
+        const jumpBtn = document.createElement('button');
+        jumpBtn.className = 'g-jump-link';
+        jumpBtn.textContent = 'Aller au message ➔';
+        jumpBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          window.jumpToMessage(item.msgId);
+        });
+
+        itemWrap.appendChild(a);
+        itemWrap.appendChild(jumpBtn);
+        list.appendChild(itemWrap);
+      }
+      loadedCount.docs = end;
+    }
+
+    function renderCurrentTabChunk(tabName) {
+      if (tabName === 'photos') loadMorePhotos();
+      else if (tabName === 'audios') loadMoreAudios();
+      else if (tabName === 'docs') loadMoreDocs();
     }
 
     // Tab switching
@@ -903,18 +983,40 @@
         tab.classList.add('active');
         const panel = document.getElementById('gp-' + target);
         if (panel) panel.classList.add('active');
+        if (loadedCount[target] === 0) {
+          renderCurrentTabChunk(target);
+        }
       });
     });
+
+    // Infinite scroll inside gallery content
+    const galleryContent = document.getElementById('gallery-content');
+    if (galleryContent) {
+      galleryContent.addEventListener('scroll', debounce(function() {
+        if (galleryContent.scrollTop + galleryContent.clientHeight >= galleryContent.scrollHeight - 300) {
+          const activeTab = document.querySelector('.g-tab.active');
+          const tabName = activeTab ? activeTab.getAttribute('data-tab') : 'photos';
+          renderCurrentTabChunk(tabName);
+        }
+      }, 60));
+    }
 
     // Open/close gallery modal
     function openGallery() {
       galleryModal.classList.add('active');
       document.body.style.overflow = 'hidden';
+      const activeTab = document.querySelector('.g-tab.active');
+      const tabName = activeTab ? activeTab.getAttribute('data-tab') : 'photos';
+      if (loadedCount[tabName] === 0) {
+        renderCurrentTabChunk(tabName);
+      }
     }
+
     function closeGallery() {
       galleryModal.classList.remove('active');
       document.body.style.overflow = '';
     }
+
     if (galleryBtn)   galleryBtn.addEventListener('click', openGallery);
     if (galleryClose) galleryClose.addEventListener('click', closeGallery);
     galleryModal.addEventListener('click', function(e) {

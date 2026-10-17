@@ -75,6 +75,7 @@ def build_bubble(
     group_texts: list[str],
     is_me: bool = False,
     has_media: bool = False,
+    month: str = "",
 ) -> str:
     """Build the HTML for a single message bubble (one sender, one or more sub-messages)."""
     avatar = (
@@ -84,12 +85,14 @@ def build_bubble(
     sender_label = f'<div class="sender" style="color:{color};">{html.escape(sender)}</div>'
     me_class = " is-me" if is_me else ""
     media_attr = "true" if has_media else "false"
+    month_attr = f' data-month="{html.escape(month)}"' if month else ""
     return (
-        f'<div class="message-row{me_class}" data-sender="{html.escape(sender)}" data-has-media="{media_attr}">'
+        f'<div class="message-row{me_class}" data-sender="{html.escape(sender)}" data-has-media="{media_attr}"{month_attr}>'
         f'{avatar}'
         f'<div class="message">{sender_label}{"".join(group_texts)}</div>'
         f'</div>'
     )
+
 
 
 def _collect_gallery_data(
@@ -234,7 +237,7 @@ def render_grouped_messages(
             sub_class = "with-file" if has_file else ""
 
             group_texts.append(
-                f'<div class="sub-message {sub_class}">'
+                f'<div class="sub-message {sub_class}" id="msg-{i}">'
                 f'<div class="text">{content_html}</div>'
                 f'<div class="time">{time_display}{edited_badge}</div>'
                 f'</div>'
@@ -243,8 +246,17 @@ def render_grouped_messages(
 
         if group_texts:
             is_me = bool(me_user and current_sender == me_user)
+            month_val = last_day[:7] if last_day else ""
             grouped_html.append(
-                build_bubble(current_sender, sender_color, initials, group_texts, is_me=is_me, has_media=group_has_media)
+                build_bubble(
+                    current_sender,
+                    sender_color,
+                    initials,
+                    group_texts,
+                    is_me=is_me,
+                    has_media=group_has_media,
+                    month=month_val,
+                )
             )
 
     return "\n".join(grouped_html), attendees, (start_date, end_date)
