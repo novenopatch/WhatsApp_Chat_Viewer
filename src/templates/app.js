@@ -907,6 +907,31 @@
 
     const filterSummary = document.getElementById('filter-summary');
 
+    // ---- Granular media-type chips ----
+    let activeMediaType = '';
+    document.querySelectorAll('.filter-media-type').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const type = btn.getAttribute('data-type');
+        if (activeMediaType === type) {
+          activeMediaType = '';
+          btn.classList.remove('filter-active');
+        } else {
+          activeMediaType = type;
+          document.querySelectorAll('.filter-media-type').forEach(b => b.classList.remove('filter-active'));
+          btn.classList.add('filter-active');
+        }
+        applyFilters();
+      });
+    });
+
+    // ---- Date range filter ----
+    let dateStart = '';
+    let dateEnd   = '';
+    const filterDateStart = document.getElementById('filter-date-start');
+    const filterDateEnd   = document.getElementById('filter-date-end');
+    if (filterDateStart) filterDateStart.addEventListener('change', () => { dateStart = filterDateStart.value; applyFilters(); });
+    if (filterDateEnd)   filterDateEnd.addEventListener('change',   () => { dateEnd   = filterDateEnd.value;   applyFilters(); });
+
     function applyFilters() {
       const rows = chatContainer ? chatContainer.querySelectorAll('.message-row') : [];
       let visibleCount = 0;
@@ -914,8 +939,20 @@
         const row = rows[i];
         let show = true;
         const sender = row.getAttribute('data-sender') || '';
+
+        // Sender filter
         if (activeSender && sender !== activeSender) show = false;
+
+        // Media-only filter (any media)
         if (show && mediaOnly && row.getAttribute('data-has-media') !== 'true') show = false;
+
+        // Granular media-type filter
+        if (show && activeMediaType) {
+          const rowTypes = (row.getAttribute('data-media-types') || '').split(' ');
+          if (!rowTypes.includes(activeMediaType)) show = false;
+        }
+
+        // Month filter
         if (show && activeMonth) {
           const rowMonth = row.getAttribute('data-month');
           if (rowMonth) {
@@ -928,6 +965,17 @@
             if (sep && sep.getAttribute('data-month') !== activeMonth) show = false;
           }
         }
+
+        // Date range filter — resolve date from parent .day-group[data-date]
+        if (show && (dateStart || dateEnd)) {
+          const dayGroup = row.closest('.day-group');
+          const dateStr  = dayGroup ? dayGroup.getAttribute('data-date') : null;
+          if (dateStr) {
+            if (dateStart && dateStr < dateStart) show = false;
+            if (show && dateEnd && dateStr > dateEnd) show = false;
+          }
+        }
+
         row.classList.toggle('filter-hidden', !show);
         if (show) visibleCount++;
       }
@@ -957,7 +1005,7 @@
       }
 
       if (filterSummary) {
-        if (activeSender || activeMonth || mediaOnly) {
+        if (activeSender || activeMonth || mediaOnly || activeMediaType || dateStart || dateEnd) {
           filterSummary.textContent = visibleCount + ' / ' + rows.length + ' messages';
         } else {
           filterSummary.textContent = '';
@@ -987,11 +1035,84 @@
     });
     filterReset.addEventListener('click', () => {
       activeSender = ''; activeMonth = ''; mediaOnly = false;
+      activeMediaType = ''; dateStart = ''; dateEnd = '';
       filterSender.value = ''; filterMonth.value = '';
       filterMediaOnly.classList.remove('filter-active');
+      document.querySelectorAll('.filter-media-type').forEach(b => b.classList.remove('filter-active'));
+      if (filterDateStart) filterDateStart.value = '';
+      if (filterDateEnd)   filterDateEnd.value   = '';
       if (filterSummary) filterSummary.textContent = '';
       document.querySelectorAll('.filter-hidden').forEach(el => el.classList.remove('filter-hidden'));
     });
+  })();
+
+  // -------------------------------------------------------------------------
+  // Timeline Scrubber — vertical quick-jump by month
+  // -------------------------------------------------------------------------
+  (function() {
+    const scrubber = document.getElementById('timeline-scrubber');
+    if (!scrubber || !chatContainer) return;
+
+    // Collect one .day-group anchor per YYYY-MM
+    const monthGroupMap = new Map(); // 'YYYY-MM' → first .day-group with that month
+    chatContainer.querySelectorAll('.day-group[data-date]').forEach(dg => {
+      const dateStr = dg.getAttribute('data-date');
+      if (!dateStr) return;
+      const key = dateStr.slice(0, 7); // 'YYYY-MM'
+      if (!monthGroupMap.has(key)) monthGroupMap.set(key, dg);
+    });
+
+    if (monthGroupMap.size === 0) return;
+
+    // Build scrubber items
+    const itemMap = new Map(); // 'YYYY-MM' → scrubber-item element
+    monthGroupMap.forEach((dg, key) => {
+      const [year, month] = key.split('-');
+      const d = new Date(parseInt(year), parseInt(month) - 1, 1);
+      const shortMonth = d.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '');
+      const shortYear  = String(d.getFullYear()).slice(2);
+      const item = document.createElement('div');
+      item.className = 'scrubber-item';
+      item.title = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      item.innerHTML = '<span class="scrubber-month">' + shortMonth + '</span><span class="scrubber-year">' + shortYear + '</span>';
+      item.addEventListener('click', () => {
+        dg.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      scrubber.appendChild(item);
+      itemMap.set(key, item);
+    });
+
+    // Highlight the scrubber item whose month is currently in view
+    if ('IntersectionObserver' in window) {
+      let activeKey = '';
+      const observer = new IntersectionObserver(entries => {
+        // Find the topmost visible day-group
+        let topEntry = null;
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            if (!topEntry || entry.boundingClientRect.top < topEntry.boundingClientRect.top) {
+              topEntry = entry;
+            }
+          }
+        });
+        if (topEntry) {
+          const dateStr = topEntry.target.getAttribute('data-date') || '';
+          const key = dateStr.slice(0, 7);
+          if (key && key !== activeKey) {
+            if (itemMap.has(activeKey)) itemMap.get(activeKey).classList.remove('scrubber-active');
+            activeKey = key;
+            if (itemMap.has(key)) {
+              const activeItem = itemMap.get(key);
+              activeItem.classList.add('scrubber-active');
+              // Scroll the scrubber itself so the active item stays visible
+              activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          }
+        }
+      }, { root: chatContainer, threshold: 0.1 });
+
+      monthGroupMap.forEach(dg => observer.observe(dg));
+    }
   })();
 
   // -------------------------------------------------------------------------

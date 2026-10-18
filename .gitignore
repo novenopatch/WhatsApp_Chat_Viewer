@@ -5,6 +5,7 @@ __pycache__/
 # WhatsApp Chat Viewer files
 /media
 *.html
+!src/templates/*.html
 .env
 chat.txt
 /examples

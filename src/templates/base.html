@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }}</title>
+  <style>
+{{ style }}
+  </style>
+</head>
+<body class="wallpaper-on" data-initial-me="{{ initial_me }}">
+
+  <!-- Sticky top bar -->
+  <div class="top-bar">
+    <h1>💬 {{ chat_label }}</h1>
+    <div class="search-wrapper">
+      <input id="search-input" type="text" placeholder="Rechercher…" autocomplete="off">
+      <span class="search-icon">🔍</span>
+      <div class="search-nav">
+        <button id="search-prev" disabled title="Résultat précédent (Shift+Entrée)">&#8679;</button>
+        <button id="search-next" disabled title="Résultat suivant (Entrée)">&#8681;</button>
+      </div>
+    </div>
+    <span id="search-count"></span>
+    <!-- Gallery button -->
+    <button id="gallery-btn" class="gallery-toggle-btn" title="Galerie de médias" aria-label="Galerie">
+      🖼️<span id="gallery-count-badge" class="gallery-badge">{{ media_count }}</span>
+    </button>
+    <!-- Wallpaper toggle -->
+    <button id="wallpaper-toggle" class="theme-toggle-btn" title="Activer/désactiver le fond d'écran WhatsApp" aria-label="Fond d'écran">
+      <span id="wallpaper-icon">🏔️</span>
+    </button>
+    <button id="theme-toggle" class="theme-toggle-btn" title="Basculer le thème Sombre / Clair" aria-label="Basculer le thème">
+      <span id="theme-icon">🌓</span>
+    </button>
+  </div>
+
+  <!-- Conversation header -->
+  <div class="conversation-header">
+    <h2>{{ attendees_header }}</h2>
+    <p>Du {{ start_date }} au {{ end_date }}</p>
+    <div class="me-selector-wrapper">
+      <label for="me-select">👤 Bulle "Moi" (droite) :</label>
+      <select id="me-select" onchange="setMeUser(this.value)">
+        {{ me_options_html }}
+      </select>
+    </div>
+    <div class="legend">{{ legend_items }}</div>
+  </div>
+
+  <!-- Filter Toolbar -->
+  <div id="filter-bar">
+    <div id="filter-inner">
+      <select id="filter-sender" title="Filtrer par participant">
+        <option value="">👤 Tous les participants</option>
+      </select>
+      <select id="filter-month" title="Aller à un mois/année">
+        <option value="">📅 Tous les mois</option>
+      </select>
+      <div class="filter-media-chips">
+        <button id="filter-media-only" class="filter-chip" title="Afficher uniquement les messages avec médias">📎 Médias</button>
+        <button class="filter-chip filter-media-type" data-type="photo" title="Photos et Stickers">📷 Photos</button>
+        <button class="filter-chip filter-media-type" data-type="video" title="Vidéos">🎬 Vidéos</button>
+        <button class="filter-chip filter-media-type" data-type="audio" title="Notes vocales">🎤 Audios</button>
+        <button class="filter-chip filter-media-type" data-type="doc" title="Documents PDF et fichiers">📄 Docs</button>
+        <button class="filter-chip filter-media-type" data-type="link" title="Liens partagés">🔗 Liens</button>
+      </div>
+      <div class="filter-date-range">
+        <span class="filter-date-label">Du</span>
+        <input type="date" id="filter-date-start" title="Date de début">
+        <span class="filter-date-label">au</span>
+        <input type="date" id="filter-date-end" title="Date de fin">
+      </div>
+      <button id="filter-reset" class="filter-chip filter-reset-btn" title="Réinitialiser les filtres">✕ Réinitialiser</button>
+    </div>
+  </div>
+
+  <!-- Vertical quick-jump timeline scrubber -->
+  <aside id="timeline-scrubber" title="Navigation rapide par date"></aside>
+
+  <!-- Chat container -->
+  <div class="chat-container" id="chat-container">
+{{ grouped_html }}
+  </div>
+
+  <!-- Stats section -->
+{{ stats_html }}
+
+  <!-- Media Gallery Modal -->
+  <div id="gallery-modal" role="dialog" aria-modal="true" aria-label="Galerie de médias">
+    <div id="gallery-inner">
+      <div id="gallery-header">
+        <h2>🖼️ Galerie de médias</h2>
+        <button id="gallery-close" title="Fermer">&#x2715;</button>
+      </div>
+      <div id="gallery-tabs">
+        <button class="g-tab active" data-tab="photos">📷 Photos &amp; Vidéos <span class="g-tab-count" id="gtc-photos"></span></button>
+        <button class="g-tab" data-tab="audios">🎤 Notes vocales <span class="g-tab-count" id="gtc-audios"></span></button>
+        <button class="g-tab" data-tab="docs">📄 Docs &amp; Liens <span class="g-tab-count" id="gtc-docs"></span></button>
+      </div>
+      <div id="gallery-content">
+        <div id="gp-photos" class="g-panel active"></div>
+        <div id="gp-audios" class="g-panel"></div>
+        <div id="gp-docs" class="g-panel"></div>
+      </div>
+    </div>
+  </div>
+  <!-- Gallery Data (JSON) -->
+  <script id="gallery-data" type="application/json">{{ gallery_data }}</script>
+
+  <!-- Lightbox overlay -->
+  <div id="lightbox">
+    <button id="lb-close" title="Fermer (Échap)">&#x2715;</button>
+    <button id="lb-prev"  title="Précédent (←)">&#8249;</button>
+    <div id="lb-img-wrap">
+      <img id="lightbox-img" src="" alt="Image agrandie">
+      <video id="lightbox-video" controls playsinline style="display:none;"></video>
+    </div>
+    <button id="lb-next"  title="Suivant (→)">&#8250;</button>
+    <div id="lb-toolbar">
+      <button id="lb-zoom-out" title="Dézoomer (-)">&#x2212;</button>
+      <span id="lb-zoom-label">100%</span>
+      <button id="lb-zoom-in"  title="Zoomer (+)">&#x2b;</button>
+      <button id="lb-zoom-reset" title="Ajuster à l'écran">&#x27F3;</button>
+      <button id="lb-actual-size" title="Taille réelle HD (1:1)">1:1 HD</button>
+      <a id="lb-open-hd" href="#" target="_blank" rel="noopener noreferrer" title="Ouvrir le fichier original HD dans un nouvel onglet">↗ HD</a>
+      <button id="lb-fullscreen" title="Plein écran (F)">&#x26f6;</button>
+    </div>
+  </div>
+
+  <!-- Scroll shortcuts -->
+  <div id="scroll-btns">
+    <button onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Haut de page">&#8679;</button>
+    <button onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="Bas de page">&#8681;</button>
+  </div>
+
+  <script>
+{{ script }}
+  </script>
+</body>
+</html>

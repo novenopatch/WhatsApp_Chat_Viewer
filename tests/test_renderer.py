@@ -285,6 +285,39 @@ class TestRenderer(unittest.TestCase):
             created_again = generate_thumbnails(td, max_size=(200, 200))
             self.assertEqual(created_again, 0)
 
+    def test_granular_media_filters_and_timeline_scrubber(self):
+        messages = [
+            {"date": "15/10/24 10:00:00", "sender": "Alice", "content": "Visite https://google.com pour voir", "dt": datetime(2024, 10, 15, 10, 0, 0)},
+            {"date": "15/10/24 10:01:00", "sender": "Alice", "content": "Photo : pièce jointe : snap.jpg", "dt": datetime(2024, 10, 15, 10, 1, 0)},
+            {"date": "15/10/24 10:02:00", "sender": "Bob", "content": "Vocal : pièce jointe : note.opus", "dt": datetime(2024, 10, 15, 10, 2, 0)},
+            {"date": "16/10/24 09:00:00", "sender": "Bob", "content": "Doc : pièce jointe : fiche.pdf", "dt": datetime(2024, 10, 16, 9, 0, 0)},
+            {"date": "16/10/24 09:05:00", "sender": "Alice", "content": "Vidéo : pièce jointe : film.mp4", "dt": datetime(2024, 10, 16, 9, 5, 0)},
+        ]
+        html_page = build_html(messages, "media", me_user="Alice")
+
+        # Filter bar: granular media chips & date range
+        self.assertIn('class="filter-media-chips"', html_page)
+        for media_type in ("photo", "video", "audio", "doc", "link"):
+            self.assertIn(f'data-type="{media_type}"', html_page)
+        self.assertIn('id="filter-date-start"', html_page)
+        self.assertIn('id="filter-date-end"', html_page)
+
+        # Timeline scrubber element
+        self.assertIn('id="timeline-scrubber"', html_page)
+        self.assertIn('.scrubber-item', html_page)
+
+        # Bubble attributes & types
+        self.assertIn('data-media-types="link photo"', html_page)
+        self.assertIn('data-media-type="photo"', html_page)
+        self.assertIn('data-media-type="link"', html_page)
+        self.assertIn('data-media-type="audio"', html_page)
+        self.assertIn('data-media-type="doc"', html_page)
+        self.assertIn('data-media-type="video"', html_page)
+
+        # Read receipt double checkmarks for is-me
+        self.assertIn('class="msg-status"', html_page)
+        self.assertIn('✓✓', html_page)
+
 
 if __name__ == "__main__":
     unittest.main()

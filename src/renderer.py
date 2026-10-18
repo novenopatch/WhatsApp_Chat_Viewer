@@ -130,6 +130,7 @@ def build_bubble(
     is_me: bool = False,
     has_media: bool = False,
     month: str = "",
+    media_types: str = "",
 ) -> str:
     """Build the HTML for a single message bubble (one sender, one or more sub-messages)."""
     avatar = (
@@ -140,8 +141,9 @@ def build_bubble(
     me_class = " is-me" if is_me else ""
     media_attr = "true" if has_media else "false"
     month_attr = f' data-month="{html.escape(month)}"' if month else ""
+    types_attr = f' data-media-types="{html.escape(media_types)}"' if media_types else ""
     return (
-        f'<div class="message-row{me_class}" data-sender="{html.escape(sender)}" data-has-media="{media_attr}"{month_attr}>'
+        f'<div class="message-row{me_class}" data-sender="{html.escape(sender)}" data-has-media="{media_attr}"{types_attr}{month_attr}>'
         f'{avatar}'
         f'<div class="message">{sender_label}{"".join(group_texts)}</div>'
         f'</div>'
@@ -270,6 +272,8 @@ def render_grouped_messages(
         # ---- Regular message group (consecutive messages from same sender) ----
         group_texts: list[str] = []
         group_has_media = False
+        group_media_types: set[str] = set()
+        is_me = bool(me_user and current_sender == me_user)
 
         while i < len(messages) and messages[i]["sender"] == current_sender:
             cur = messages[i]
@@ -287,29 +291,47 @@ def render_grouped_messages(
             clean_content, was_edited = strip_annotations(cur["content"])
             filename = get_attachment_filename(clean_content)
             has_file = filename is not None
+            sub_media_type = ""
             if has_file:
                 group_has_media = True
-
-            if has_file:
+                fn_lower = filename.lower()
+                if fn_lower.endswith((".jpg", ".jpeg", ".png", ".gif", ".webp")):
+                    sub_media_type = "photo"
+                elif fn_lower.endswith((".mp4", ".mov", ".3gp")):
+                    sub_media_type = "video"
+                elif fn_lower.endswith((".opus", ".mp3", ".ogg", ".m4a", ".aac")):
+                    sub_media_type = "audio"
+                elif fn_lower.endswith(".pdf"):
+                    sub_media_type = "doc"
+                else:
+                    sub_media_type = "doc"
                 content_html = render_attachment(filename, media_dir, output_dir=output_dir)
             else:
+                if URL_PATTERN.search(clean_content):
+                    sub_media_type = "link"
                 content_html = format_message(clean_content).replace("\n", "<br>")
+
+            if sub_media_type:
+                group_media_types.add(sub_media_type)
 
             time_display = cur["dt"].strftime("%H:%M") if cur.get("dt") else cur["date"]
             edited_badge = ' <span class="edited-badge">modifié</span>' if was_edited else ""
-            sub_class = "with-file" if has_file else ""
+            status_check = ' <span class="msg-status" title="Lu">✓✓</span>' if is_me else ""
+            type_class = f" media-type-{sub_media_type}" if sub_media_type else ""
+            sub_class = f"with-file{type_class}" if has_file else (type_class.strip())
+            type_attr = f' data-media-type="{sub_media_type}"' if sub_media_type else ""
 
             group_texts.append(
-                f'<div class="sub-message {sub_class}" id="msg-{i}">'
+                f'<div class="sub-message {sub_class}" id="msg-{i}"{type_attr}>'
                 f'<div class="text">{content_html}</div>'
-                f'<div class="time">{time_display}{edited_badge}</div>'
+                f'<div class="time">{time_display}{edited_badge}{status_check}</div>'
                 f'</div>'
             )
             i += 1
 
         if group_texts:
-            is_me = bool(me_user and current_sender == me_user)
             month_val = last_day[:7] if last_day else ""
+            types_str = " ".join(sorted(group_media_types))
             grouped_html.append(
                 build_bubble(
                     current_sender,
@@ -319,6 +341,7 @@ def render_grouped_messages(
                     is_me=is_me,
                     has_media=group_has_media,
                     month=month_val,
+                    media_types=types_str,
                 )
             )
 
