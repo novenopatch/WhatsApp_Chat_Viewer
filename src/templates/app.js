@@ -400,8 +400,11 @@
 
   if (chatContainer) {
     chatContainer.addEventListener('click', function(e) {
-      const img = e.target.closest('.media-img');
-      if (img) openLightbox(img);
+      const img = e.target.closest('.media-img, .sticker-img');
+      if (img) {
+        e.stopPropagation();
+        openLightbox(img);
+      }
     });
   }
 
@@ -432,8 +435,12 @@
     const zoomControls = [lbZoomIn, lbZoomOut, lbZoomReset, document.getElementById('lb-zoom-label')];
     zoomControls.forEach(el => { if (el) el.style.display = ''; });
 
-    lbImages = Array.from(document.querySelectorAll('.media-img'));
+    lbImages = Array.from(document.querySelectorAll('.media-img, .sticker-img'));
     lbIdx = lbImages.indexOf(img);
+    if (lbIdx === -1) {
+      lbImages = [img];
+      lbIdx = 0;
+    }
     lightboxImg.src = img.dataset.full || img.src;
     lightbox.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -470,8 +477,11 @@
   function lbMove(delta) {
     if (!lbImages.length || !lightboxImg) return;
     lbIdx = ((lbIdx + delta + lbImages.length) % lbImages.length);
-    lightboxImg.src = lbImages[lbIdx].dataset.full || lbImages[lbIdx].src;
-    lbResetZoom();
+    const target = lbImages[lbIdx];
+    if (target) {
+      lightboxImg.src = target.dataset.full || target.src;
+      lbResetZoom();
+    }
   }
 
   const lbClose     = document.getElementById('lb-close');
@@ -1280,6 +1290,7 @@
         if (entry.isIntersecting) {
           // Mount day-group content back into DOM
           const fragment = windowedFragments.get(dg);
+          if (fragment) {
             dg.appendChild(fragment);
             windowedFragments.delete(dg);
             dg.style.minHeight = '';

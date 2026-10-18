@@ -660,6 +660,7 @@ body.dark-mode.wallpaper-on::before {
 .sticker-img {
     max-width: 110px;
     display: block;
+    cursor: zoom-in;
 }
 
 /* Audio Container & Speed Button */
@@ -754,6 +755,13 @@ mark.wa-highlight.match-active {
 
 #lightbox.active {
     display: flex;
+}
+
+#lightbox:fullscreen {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.96);
 }
 
 #lb-img-wrap {
