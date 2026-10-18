@@ -5,6 +5,7 @@ Convert WhatsApp chat export (.txt + media folder) into a modern,
 responsive, and high-performance interactive HTML page.
 """
 
+import gzip
 import os
 import sys
 
@@ -28,6 +29,7 @@ from src.parser import (
     get_media_type_label,
     format_message,
     strip_annotations,
+    iter_chat,
     parse_chat,
 )
 from src.stats import (
@@ -43,6 +45,8 @@ from src.renderer import (
     build_bubble as _build_bubble,
     render_grouped_messages,
     build_html,
+    minify_html,
+    generate_thumbnails,
 )
 from src.config import (
     parse_dotenv as _parse_dotenv,
@@ -88,10 +92,25 @@ def main() -> None:
         else:
             print(f"⚠️  '{me_user}' n'a pas été trouvé parmi les participants : {', '.join(attendees)}")
 
+    cli_args = parse_args()
+    if getattr(cli_args, "thumbs", False) or os.environ.get("GENERATE_THUMBS"):
+        print("🖼️  Génération des miniatures d'images...")
+        num_thumbs = generate_thumbnails(media_dir)
+        print(f"   Miniatures générées : {num_thumbs}")
+
     html_output = build_html(messages, media_dir, output_path=output_file, me_user=me_user)
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(html_output)
-    print(f"✅ Fichier généré : {output_file}  ({len(messages):,} messages)")
+
+    gz_output = output_file + ".gz"
+    with gzip.open(gz_output, "wt", encoding="utf-8", compresslevel=9) as f:
+        f.write(html_output)
+
+    orig_kb = len(html_output.encode("utf-8")) / 1024
+    gz_kb = os.path.getsize(gz_output) / 1024
+    ratio = (1 - (gz_kb / orig_kb)) * 100 if orig_kb else 0
+    print(f"✅ Fichier généré : {output_file}  ({len(messages):,} messages, {orig_kb:.1f} Ko)")
+    print(f"📦 Version compressée : {gz_output}  ({gz_kb:.1f} Ko, -{ratio:.1f}%)")
 
 
 if __name__ == "__main__":

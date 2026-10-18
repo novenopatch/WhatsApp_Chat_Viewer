@@ -13,6 +13,7 @@ from src.parser import (
     get_media_type_label,
     format_message,
     strip_annotations,
+    iter_chat,
     parse_chat,
 )
 
@@ -205,6 +206,32 @@ class TestParser(unittest.TestCase):
         self.assertIn('<a href="https://example.com/path_with_underscores*and*stars"', html_res)
         # Underscores inside the URL should not be parsed into <em>
         self.assertNotIn("<em>", html_res)
+
+    def test_iter_chat_streaming(self):
+        sample = (
+            "[15/10/24 14:00:00] Alice: Premier message\n"
+            "[15/10/24 14:01:00] Bob: Deuxième message multiline\n"
+            "ligne suivante\n"
+        )
+        with tempfile.NamedTemporaryFile("w+", encoding="utf-8", delete=False) as tf:
+            tf.write(sample)
+            temp_path = tf.name
+
+        try:
+            it = iter_chat(temp_path)
+            self.assertTrue(hasattr(it, "__iter__"))
+            self.assertTrue(hasattr(it, "__next__"))
+            first = next(it)
+            self.assertEqual(first["sender"], "Alice")
+            self.assertEqual(first["content"], "Premier message")
+            second = next(it)
+            self.assertEqual(second["sender"], "Bob")
+            self.assertEqual(second["content"], "Deuxième message multiline\nligne suivante")
+            with self.assertRaises(StopIteration):
+                next(it)
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
 
 
 if __name__ == "__main__":

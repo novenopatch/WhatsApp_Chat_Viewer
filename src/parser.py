@@ -2,6 +2,7 @@
 
 import html
 import os
+from collections.abc import Iterator
 from datetime import datetime
 from src.constants import (
     MESSAGE_PATTERN,
@@ -117,24 +118,33 @@ def strip_annotations(content: str) -> tuple[str, bool]:
     return content.strip(), was_edited
 
 
-def parse_chat(file_path: str) -> list[dict]:
-    """Parse a WhatsApp exported .txt file into a list of message dicts."""
-    messages = []
+def iter_chat(file_path: str) -> Iterator[dict]:
+    """Stream WhatsApp messages line-by-line from exported .txt without loading the full file into memory at once."""
     if not os.path.isfile(file_path):
-        return messages
+        return
 
+    current_msg = None
     with open(file_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
+        for raw_line in f:
+            line = raw_line.strip()
             match = MESSAGE_PATTERN.match(line)
             if match:
+                if current_msg is not None:
+                    yield current_msg
                 date, sender, content = match.groups()
-                messages.append({
+                current_msg = {
                     "date": date,
                     "sender": sender.strip(),
                     "content": content,
                     "dt": parse_date(date),
-                })
-            elif messages:
-                messages[-1]["content"] += "\n" + line
-    return messages
+                }
+            elif current_msg is not None:
+                current_msg["content"] += "\n" + line
+
+        if current_msg is not None:
+            yield current_msg
+
+
+def parse_chat(file_path: str) -> list[dict]:
+    """Parse a WhatsApp exported .txt file into a list of message dicts."""
+    return list(iter_chat(file_path))

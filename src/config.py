@@ -76,6 +76,7 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--media", "-m", metavar="DIR", help="Dossier des médias")
     p.add_argument("--output", "-o", metavar="FILE", help="Fichier HTML de sortie (défaut : output.html)")
     p.add_argument("--me", "--your-name", dest="me", metavar="NAME", help="Votre nom ou pseudo dans la conversation (bulles à droite sur fond vert)")
+    p.add_argument("--thumbs", action="store_true", help="Génère des miniatures légères pour les photos afin d'accélérer le rendu")
     return p.parse_args(args)
 
 

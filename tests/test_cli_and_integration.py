@@ -55,6 +55,14 @@ class TestCLIAndIntegration(unittest.TestCase):
             self.assertIn("Test message 1", content)
             self.assertIn("data-initial-me=\"Alice\"", content)
 
+            # Ensure .gz compressed sibling file was generated and is valid
+            gz_file = output_file + ".gz"
+            self.assertTrue(os.path.isfile(gz_file))
+            import gzip
+            with gzip.open(gz_file, "rt", encoding="utf-8") as gz_f:
+                gz_content = gz_f.read()
+            self.assertEqual(gz_content, content)
+
     def test_cli_missing_chat_file_exits_with_error(self):
         """Ensure providing a non-existent chat file gracefully exits with status 1."""
         cmd = [
@@ -71,7 +79,10 @@ class TestCLIAndIntegration(unittest.TestCase):
         """Ensure build.py still exposes backward-compatible functions and constants."""
         import build
         self.assertTrue(callable(build.parse_chat))
+        self.assertTrue(callable(build.iter_chat))
         self.assertTrue(callable(build.build_html))
+        self.assertTrue(callable(build.minify_html))
+        self.assertTrue(callable(build.generate_thumbnails))
         self.assertTrue(callable(build.parse_date))
         self.assertTrue(callable(build.format_day_label))
         self.assertTrue(callable(build.compute_stats))

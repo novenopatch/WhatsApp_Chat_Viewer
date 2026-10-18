@@ -3,6 +3,14 @@
 import html
 import json
 import os
+import re
+
+try:
+    from PIL import Image
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
+
 from src.constants import AVATAR_COLORS, URL_PATTERN
 from src.parser import (
     format_day_label,
@@ -14,6 +22,44 @@ from src.parser import (
 )
 from src.stats import compute_stats, render_stats_html
 from src.user_detector import resolve_me_user
+
+
+def generate_thumbnails(media_dir: str, max_size: tuple[int, int] = (400, 400), quality: int = 80) -> int:
+    """Generate lightweight thumbnails in media_dir/.thumbs for image files.
+
+    Skips files that already have an up-to-date thumbnail.
+    Returns the count of new thumbnails created.
+    """
+    if not HAS_PIL or not media_dir or not os.path.isdir(media_dir):
+        return 0
+
+    thumbs_dir = os.path.join(media_dir, ".thumbs")
+    try:
+        os.makedirs(thumbs_dir, exist_ok=True)
+    except OSError:
+        return 0
+
+    created = 0
+    img_exts = (".jpg", ".jpeg", ".png")
+    for fname in os.listdir(media_dir):
+        if not fname.lower().endswith(img_exts):
+            continue
+        src_path = os.path.join(media_dir, fname)
+        if not os.path.isfile(src_path):
+            continue
+        dst_path = os.path.join(thumbs_dir, fname)
+        if os.path.isfile(dst_path):
+            continue
+        try:
+            with Image.open(src_path) as im:
+                im.thumbnail(max_size)
+                if im.mode in ("RGBA", "P") and fname.lower().endswith((".jpg", ".jpeg")):
+                    im = im.convert("RGB")
+                im.save(dst_path, optimize=True, quality=quality)
+                created += 1
+        except Exception:
+            continue
+    return created
 
 
 def _get_template_path(filename: str) -> str:
@@ -44,6 +90,14 @@ def render_attachment(filename: str, media_dir: str, output_dir: str = "") -> st
     if file_type == "STICKER":
         return f'<img src="{esc_filepath}" class="sticker-img" alt="Sticker" loading="lazy" decoding="async">'
     if filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
+        thumb_disk_path = os.path.join(media_dir, ".thumbs", filename)
+        if os.path.isfile(thumb_disk_path):
+            thumb_filepath = f"{rel_media_dir}/.thumbs/{filename}".replace("//", "/")
+            esc_thumb = html.escape(thumb_filepath, quote=True)
+            return (
+                f'<img src="{esc_thumb}" data-full="{esc_filepath}" '
+                f'class="media-img" alt="Image" loading="lazy" decoding="async">'
+            )
         return f'<img src="{esc_filepath}" class="media-img" alt="Image" loading="lazy" decoding="async">'
     if filename.lower().endswith(".webp"):
         return f'<img src="{esc_filepath}" class="sticker-img" alt="Sticker" loading="lazy" decoding="async">'
@@ -126,7 +180,9 @@ def _collect_gallery_data(
         if fname:
             filepath = f"{rel_media}/{fname}".replace("//", "/")
             if fname.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-                gallery_photos.append({"src": filepath, "sender": sender, "time": time_str, "msgId": msg_id})
+                thumb_disk_path = os.path.join(media_dir, ".thumbs", fname)
+                thumb_filepath = f"{rel_media}/.thumbs/{fname}".replace("//", "/") if os.path.isfile(thumb_disk_path) else filepath
+                gallery_photos.append({"src": filepath, "thumb": thumb_filepath, "sender": sender, "time": time_str, "msgId": msg_id})
             elif fname.lower().endswith(".webp"):
                 # webp are stickers – include in photos tab but mark as sticker
                 gallery_photos.append({"src": filepath, "sender": sender, "time": time_str, "sticker": True, "msgId": msg_id})
@@ -277,6 +333,7 @@ def build_html(
     media_dir: str,
     output_path: str = "",
     me_user: str | None = None,
+    minify: bool = True,
 ) -> str:
     """Build the full self-contained HTML page from parsed messages."""
     if not messages:
@@ -359,4 +416,35 @@ def build_html(
     for placeholder, val in replacements.items():
         result = result.replace(placeholder, val)
 
-    return result
+    return minify_html(result) if minify else result
+
+
+def minify_html(html_str: str) -> str:
+    """Minify HTML by stripping empty lines, leading/trailing whitespace, and HTML comments,
+    while preserving <pre>, <code>, <script>, and <style> contents.
+    """
+    if not html_str:
+        return ""
+
+    preserved: list[str] = []
+
+    def preserve_block(match: re.Match) -> str:
+        idx = len(preserved)
+        preserved.append(match.group(0))
+        return f"__PRESERVED_BLOCK_{idx}__"
+
+    pattern = re.compile(r"<(pre|code|script|style)\b[^>]*>.*?</\1>", re.DOTALL | re.IGNORECASE)
+    protected = pattern.sub(preserve_block, html_str)
+
+    # Remove non-conditional HTML comments
+    protected = re.sub(r"<!--(?!\[if).*?-->", "", protected, flags=re.DOTALL)
+
+    # Strip line whitespace and drop blank lines
+    lines = [line.strip() for line in protected.splitlines()]
+    minified = "\n".join(line for line in lines if line)
+
+    # Restore preserved blocks
+    for idx, block in enumerate(preserved):
+        minified = minified.replace(f"__PRESERVED_BLOCK_{idx}__", block, 1)
+
+    return minified.strip()

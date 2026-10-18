@@ -434,7 +434,7 @@
 
     lbImages = Array.from(document.querySelectorAll('.media-img'));
     lbIdx = lbImages.indexOf(img);
-    lightboxImg.src = img.src;
+    lightboxImg.src = img.dataset.full || img.src;
     lightbox.classList.add('active');
     document.body.style.overflow = 'hidden';
     lbResetZoom();
@@ -470,7 +470,7 @@
   function lbMove(delta) {
     if (!lbImages.length || !lightboxImg) return;
     lbIdx = ((lbIdx + delta + lbImages.length) % lbImages.length);
-    lightboxImg.src = lbImages[lbIdx].src;
+    lightboxImg.src = lbImages[lbIdx].dataset.full || lbImages[lbIdx].src;
     lbResetZoom();
   }
 
@@ -572,21 +572,36 @@
   };
 
   // -------------------------------------------------------------------------
-  // Singleton Audio Manager (coordinates single active playback, zero pipeline leaks)
+  // -------------------------------------------------------------------------
+  // Coordinated Media Manager (Audio & Video lifecycle & single-playback guard)
   // -------------------------------------------------------------------------
   let activeAudio = null;
+  let activeVideo = null;
 
   document.addEventListener('play', function(e) {
-    if (e.target && e.target.tagName === 'AUDIO') {
+    if (!e.target) return;
+    if (e.target.tagName === 'AUDIO') {
       const audio = e.target;
       if (activeAudio && activeAudio !== audio) {
         activeAudio.pause();
+      }
+      if (activeVideo && !activeVideo.paused) {
+        activeVideo.pause();
       }
       activeAudio = audio;
       const sp = parseFloat(audio.dataset.speed || 1);
       if (sp && sp !== 1) {
         audio.playbackRate = sp;
       }
+    } else if (e.target.tagName === 'VIDEO') {
+      const video = e.target;
+      if (activeAudio && !activeAudio.paused) {
+        activeAudio.pause();
+      }
+      if (activeVideo && activeVideo !== video && !activeVideo.paused) {
+        activeVideo.pause();
+      }
+      activeVideo = video;
     }
   }, true);
 
@@ -594,7 +609,31 @@
     if (e.target && e.target === activeAudio) {
       activeAudio = null;
     }
+    if (e.target && e.target === activeVideo) {
+      activeVideo = null;
+    }
   }, true);
+
+  // Auto-pause videos scrolled out of viewport to release hardware video decoder
+  let videoViewportObserver = null;
+  if (window.IntersectionObserver) {
+    videoViewportObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (!entry.isIntersecting) {
+          const v = entry.target;
+          if (v && !v.paused) {
+            v.pause();
+          }
+        }
+      });
+    }, { rootMargin: '100px 0px 100px 0px', threshold: 0 });
+
+    if (chatContainer) {
+      chatContainer.querySelectorAll('video').forEach(function(v) {
+        videoViewportObserver.observe(v);
+      });
+    }
+  }
 
   // Delegated handler for speed buttons and fullscreen video buttons
   if (chatContainer) {
@@ -607,7 +646,15 @@
       const fsBtn = e.target.closest('.video-fs-btn');
       if (fsBtn) {
         const vid = fsBtn.previousElementSibling;
-        if (vid && vid.requestFullscreen) vid.requestFullscreen();
+        if (vid) {
+          const srcTag = vid.querySelector('source');
+          const videoSrc = srcTag ? srcTag.getAttribute('src') : vid.src;
+          if (videoSrc && window.openLightboxVideo) {
+            window.openLightboxVideo(videoSrc);
+            return;
+          }
+          if (vid.requestFullscreen) vid.requestFullscreen();
+        }
         return;
       }
     });
@@ -1018,7 +1065,7 @@
         wrap.className = 'g-thumb-wrap';
         if (p.video) {
           wrap.innerHTML =
-            '<video src="' + p.src + '" style="width:100%;height:100%;object-fit:cover" preload="metadata"></video>' +
+            '<video src="' + p.src + '" style="width:100%;height:100%;object-fit:cover" preload="none"></video>' +
             '<div class="g-video-badge">▶️</div>' +
             '<div class="g-thumb-meta">' + p.sender + ' · ' + p.time + '</div>' +
             '<button class="g-jump-btn" title="Aller au message">➔</button>';
@@ -1032,7 +1079,8 @@
           });
         } else {
           const img = document.createElement('img');
-          img.src = p.src;
+          img.src = p.thumb || p.src;
+          if (p.thumb) img.dataset.full = p.src;
           img.loading = 'lazy';
           img.alt = '';
           const meta = document.createElement('div');
@@ -1232,11 +1280,15 @@
         if (entry.isIntersecting) {
           // Mount day-group content back into DOM
           const fragment = windowedFragments.get(dg);
-          if (fragment) {
             dg.appendChild(fragment);
             windowedFragments.delete(dg);
             dg.style.minHeight = '';
             dg.classList.remove('is-windowed');
+            if (videoViewportObserver) {
+              dg.querySelectorAll('video').forEach(function(v) {
+                videoViewportObserver.observe(v);
+              });
+            }
           }
         } else {
           // Detach day-group content when far offscreen to free memory

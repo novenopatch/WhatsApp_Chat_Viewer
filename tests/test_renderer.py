@@ -1,5 +1,7 @@
 """Unit tests for the WhatsApp renderer module."""
 
+import os
+import tempfile
 import unittest
 from datetime import datetime
 from src.renderer import (
@@ -7,6 +9,9 @@ from src.renderer import (
     build_bubble,
     render_grouped_messages,
     build_html,
+    minify_html,
+    generate_thumbnails,
+    HAS_PIL,
 )
 
 
@@ -222,6 +227,61 @@ class TestRenderer(unittest.TestCase):
         self.assertIn('id="lightbox-video"', html_page)
         self.assertIn('id="lb-fullscreen"', html_page)
         self.assertIn('class="video-fs-btn"', html_page)
+
+    def test_minify_html(self):
+        sample = """<!DOCTYPE html>
+<html>
+    <head>
+        <!-- Test Comment -->
+        <style>
+            .test { color: red; }
+        </style>
+    </head>
+    <body>
+        <div class="msg">
+            <pre><code>code block preserves   spaces</code></pre>
+            <script>
+                const x = "preserve   me";
+            </script>
+        </div>
+    </body>
+</html>"""
+        minified = minify_html(sample)
+        self.assertTrue(minified.startswith("<!DOCTYPE html>"))
+        self.assertNotIn("<!-- Test Comment -->", minified)
+        self.assertIn("<pre><code>code block preserves   spaces</code></pre>", minified)
+        self.assertIn('const x = "preserve   me";', minified)
+        self.assertIn(".test { color: red; }", minified)
+        # Verify no empty lines
+        self.assertNotIn("\n\n", minified)
+
+    def test_generate_thumbnails_and_render(self):
+        if not HAS_PIL:
+            self.skipTest("PIL not available")
+        from PIL import Image
+
+        with tempfile.TemporaryDirectory() as td:
+            # Create a test 800x600 image
+            img_path = os.path.join(td, "test.jpg")
+            im = Image.new("RGB", (800, 600), color=(255, 0, 0))
+            im.save(img_path)
+
+            created = generate_thumbnails(td, max_size=(200, 200))
+            self.assertEqual(created, 1)
+
+            thumbs_dir = os.path.join(td, ".thumbs")
+            self.assertTrue(os.path.isdir(thumbs_dir))
+            thumb_file = os.path.join(thumbs_dir, "test.jpg")
+            self.assertTrue(os.path.isfile(thumb_file))
+
+            # Verify render_attachment uses thumbnail and sets data-full
+            html_snippet = render_attachment("test.jpg", td)
+            self.assertIn('.thumbs/test.jpg', html_snippet)
+            self.assertIn('data-full=', html_snippet)
+
+            # Re-running thumbnail generation should skip existing
+            created_again = generate_thumbnails(td, max_size=(200, 200))
+            self.assertEqual(created_again, 0)
 
 
 if __name__ == "__main__":
