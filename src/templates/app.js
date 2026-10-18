@@ -391,8 +391,24 @@
     lbUpdateTransform();
   }
 
-  const lbVideo     = document.getElementById('lightbox-video');
-  const lbFullscreen= document.getElementById('lb-fullscreen');
+  const lbVideo      = document.getElementById('lightbox-video');
+  const lbFullscreen = document.getElementById('lb-fullscreen');
+  const lbActualSize = document.getElementById('lb-actual-size');
+  const lbOpenHd     = document.getElementById('lb-open-hd');
+
+  function lbZoomToActualSize() {
+    if (!lightboxImg) return;
+    const wrap = lbImgWrap;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const natW = lightboxImg.naturalWidth || (rect.width * 2);
+    const baseW = lightboxImg.offsetWidth || (rect.width * 0.88);
+    const actualScale = baseW > 0 ? (natW / baseW) : 2;
+    lbScale = Math.min(8, Math.max(1.2, actualScale));
+    lbPanX = 0;
+    lbPanY = 0;
+    lbUpdateTransform();
+  }
 
   function attachImageListeners() {
     // Handled via high-performance event delegation on chatContainer
@@ -432,7 +448,7 @@
       lbVideo.style.display = 'none';
     }
     lightboxImg.style.display = 'block';
-    const zoomControls = [lbZoomIn, lbZoomOut, lbZoomReset, document.getElementById('lb-zoom-label')];
+    const zoomControls = [lbZoomIn, lbZoomOut, lbZoomReset, lbActualSize, lbOpenHd, document.getElementById('lb-zoom-label')];
     zoomControls.forEach(el => { if (el) el.style.display = ''; });
 
     lbImages = Array.from(document.querySelectorAll('.media-img, .sticker-img'));
@@ -441,7 +457,9 @@
       lbImages = [img];
       lbIdx = 0;
     }
-    lightboxImg.src = img.dataset.full || img.src;
+    const fullHdSrc = img.dataset.full || img.src;
+    lightboxImg.src = fullHdSrc;
+    if (lbOpenHd) lbOpenHd.href = fullHdSrc;
     lightbox.classList.add('active');
     document.body.style.overflow = 'hidden';
     lbResetZoom();
@@ -454,7 +472,7 @@
     lbVideo.src = videoSrc;
     lightbox.classList.add('active');
     document.body.style.overflow = 'hidden';
-    const zoomControls = [lbZoomIn, lbZoomOut, lbZoomReset, document.getElementById('lb-zoom-label')];
+    const zoomControls = [lbZoomIn, lbZoomOut, lbZoomReset, lbActualSize, lbOpenHd, document.getElementById('lb-zoom-label')];
     zoomControls.forEach(el => { if (el) el.style.display = 'none'; });
     lbVideo.play().catch(() => {});
   };
@@ -469,7 +487,7 @@
       lbVideo.style.display = 'none';
     }
     if (lightboxImg) lightboxImg.style.display = 'block';
-    const zoomControls = [lbZoomIn, lbZoomOut, lbZoomReset, document.getElementById('lb-zoom-label')];
+    const zoomControls = [lbZoomIn, lbZoomOut, lbZoomReset, lbActualSize, lbOpenHd, document.getElementById('lb-zoom-label')];
     zoomControls.forEach(el => { if (el) el.style.display = ''; });
     lbResetZoom();
   }
@@ -479,7 +497,9 @@
     lbIdx = ((lbIdx + delta + lbImages.length) % lbImages.length);
     const target = lbImages[lbIdx];
     if (target) {
-      lightboxImg.src = target.dataset.full || target.src;
+      const fullHdSrc = target.dataset.full || target.src;
+      lightboxImg.src = fullHdSrc;
+      if (lbOpenHd) lbOpenHd.href = fullHdSrc;
       lbResetZoom();
     }
   }
@@ -497,6 +517,10 @@
   if (lbZoomIn)     lbZoomIn.addEventListener('click', () => lbZoom(1));
   if (lbZoomOut)    lbZoomOut.addEventListener('click', () => lbZoom(-1));
   if (lbZoomReset)  lbZoomReset.addEventListener('click', lbResetZoom);
+  if (lbActualSize) lbActualSize.addEventListener('click', () => {
+    if (Math.abs(lbScale - 1) > 0.1) lbResetZoom();
+    else lbZoomToActualSize();
+  });
   if (lbFullscreen) lbFullscreen.addEventListener('click', toggleLightboxFullscreen);
 
   if (lightbox) {
@@ -505,14 +529,14 @@
     });
   }
 
-  // Double-click to zoom / reset
-  if (lightboxImg) {
-    lightboxImg.addEventListener('dblclick', e => {
+  // Double-click on wrap to zoom to 1:1 HD or reset
+  if (lbImgWrap) {
+    lbImgWrap.addEventListener('dblclick', e => {
       e.preventDefault();
-      if (lbScale > 1) {
+      if (lbScale > 1.05) {
         lbResetZoom();
       } else {
-        lbZoom(1, e.clientX, e.clientY);
+        lbZoomToActualSize();
       }
     });
   }

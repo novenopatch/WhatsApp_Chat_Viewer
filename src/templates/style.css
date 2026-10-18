@@ -875,20 +875,31 @@ mark.wa-highlight.match-active {
     z-index: 2;
 }
 
-#lb-toolbar button {
+#lb-toolbar button, #lb-toolbar a {
     background: none;
     border: none;
     color: #fff;
-    font-size: 18px;
+    font-size: 16px;
     cursor: pointer;
     line-height: 1;
-    padding: 2px 6px;
+    padding: 3px 8px;
     border-radius: 4px;
     transition: background 0.15s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
-#lb-toolbar button:hover {
-    background: rgba(255, 255, 255, 0.15);
+#lb-toolbar button:hover, #lb-toolbar a:hover {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+#lb-actual-size, #lb-open-hd {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: rgba(255, 255, 255, 0.12);
 }
 
 #lb-zoom-label {

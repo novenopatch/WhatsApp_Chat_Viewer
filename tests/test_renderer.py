@@ -226,6 +226,8 @@ class TestRenderer(unittest.TestCase):
         self.assertIn('id="lightbox-img"', html_page)
         self.assertIn('id="lightbox-video"', html_page)
         self.assertIn('id="lb-fullscreen"', html_page)
+        self.assertIn('id="lb-actual-size"', html_page)
+        self.assertIn('id="lb-open-hd"', html_page)
         self.assertIn('class="video-fs-btn"', html_page)
 
     def test_minify_html(self):
