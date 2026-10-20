@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import struct
 import zipfile
 from src.constants import (
     MESSAGE_PATTERN,
@@ -40,6 +41,7 @@ def safe_extract_zip(
     min_ratio_threshold: int = DEFAULT_MIN_RATIO_THRESHOLD,
     progress_callback: Any = None,
     ultra_perf: bool = False,
+    check_overlap: bool | None = None,
 ) -> list[str]:
     """Safely extract all files from a ZIP archive into target_dir.
 
@@ -80,6 +82,11 @@ def safe_extract_zip(
         except ValueError:
             max_ratio = DEFAULT_MAX_COMPRESSION_RATIO
 
+    # check_overlap: None = auto-resolve via env var ZIP_CHECK_OVERLAP (default: disabled)
+    if check_overlap is None:
+        env_val = os.environ.get("ZIP_CHECK_OVERLAP", "0").strip().lower()
+        check_overlap = env_val in ("1", "true", "yes")
+
     abs_target = os.path.abspath(target_dir)
     os.makedirs(abs_target, exist_ok=True)
 
@@ -99,7 +106,7 @@ def safe_extract_zip(
                 f"nombre excessif de fichiers : {len(members)} (limite : {max_files})"
             )
 
-        # Check 2: Anti-non-recursive zip bomb (detect duplicate or overlapping local header offsets)
+        # Check 2: Anti-non-recursive zip bomb (detect duplicate local header offsets)
         seen_offsets: set[int] = set()
         for member in members:
             if member.header_offset in seen_offsets:
@@ -108,18 +115,31 @@ def safe_extract_zip(
                 )
             seen_offsets.add(member.header_offset)
 
-        # Verify physical ordering: members must not overlap their compressed payloads
-        sorted_members = sorted(members, key=lambda m: m.header_offset)
-        for i in range(len(sorted_members) - 1):
-            m1 = sorted_members[i]
-            m2 = sorted_members[i + 1]
-            fn_len = len(m1.filename.encode("utf-8", "replace"))
-            min_next_offset = m1.header_offset + 30 + fn_len + max(0, m1.compress_size)
-            if m2.header_offset < min_next_offset:
-                raise ValueError(
-                    f"Sécurité : bombe zip suspectée (chevauchement physique des données "
-                    f"entre '{m1.filename}' et '{m2.filename}')"
-                )
+        # Check 2b: Physical overlap check (disabled by default; enable via ZIP_CHECK_OVERLAP=1 or check_overlap=True)
+        if check_overlap:
+            sorted_members = sorted(members, key=lambda m: m.header_offset)
+            with open(clean_zip, "rb") as zf_raw:
+                for i in range(len(sorted_members) - 1):
+                    m1 = sorted_members[i]
+                    m2 = sorted_members[i + 1]
+
+                    # m2 cannot begin inside m1's fixed 30-byte local header
+                    if m2.header_offset < m1.header_offset + 30:
+                        raise ValueError(
+                            f"Sécurité : bombe zip suspectée (chevauchement physique des en-têtes "
+                            f"entre '{m1.filename}' et '{m2.filename}')"
+                        )
+
+                    zf_raw.seek(m1.header_offset)
+                    hdr = zf_raw.read(30)
+                    if len(hdr) == 30 and hdr.startswith(b"PK\x03\x04"):
+                        fn_len, ex_len = struct.unpack_from("<HH", hdr, 26)
+                        min_next_offset = m1.header_offset + 30 + fn_len + ex_len + max(0, m1.compress_size)
+                        if m2.header_offset < min_next_offset:
+                            raise ValueError(
+                                f"Sécurité : bombe zip suspectée (chevauchement physique des données "
+                                f"entre '{m1.filename}' et '{m2.filename}')"
+                            )
 
         # Check 3: Declared sizes and compression ratio
         total_declared_size = 0
@@ -415,6 +435,7 @@ def extract_whatsapp_zip(
     progress_callback: Any = None,
     ultra_perf: bool = False,
     verbose: bool = False,
+    check_overlap: bool | None = None,
 ) -> tuple[str, str]:
     """High-level function: extract a WhatsApp ZIP export and return (chat_file, media_dir)."""
     clean_zip = os.path.expanduser(zip_path)
@@ -441,6 +462,7 @@ def extract_whatsapp_zip(
         max_ratio=max_ratio,
         progress_callback=progress_callback,
         ultra_perf=ultra_perf,
+        check_overlap=check_overlap,
     )
 
     chat_file, media_dir = find_chat_in_extracted(extract_dir)

@@ -18,7 +18,14 @@ from src.renderer import (
     _collect_gallery_data,
     build_html,
 )
-from src.server import WhatsAppViewerHandler, SESSIONS
+from src.server import (
+    WhatsAppViewerHandler,
+    SESSIONS,
+    extract_boundary,
+    parse_multipart_stream,
+    get_session_base_dir,
+    cleanup_stale_sessions,
+)
 
 
 class TestStandaloneAndServer(unittest.TestCase):
@@ -174,6 +181,119 @@ class TestStandaloneAndServer(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as ctx:
             urllib.request.urlopen(req)
         self.assertEqual(ctx.exception.code, 400)
+
+    def test_extract_boundary(self):
+        """Should correctly extract boundary from various Content-Type header formats."""
+        self.assertEqual(extract_boundary("multipart/form-data; boundary=xyz123"), "xyz123")
+        self.assertEqual(extract_boundary('multipart/form-data; boundary="quoted_boundary"'), "quoted_boundary")
+        self.assertEqual(extract_boundary("multipart/form-data; charset=utf-8; boundary=xyz"), "xyz")
+        self.assertIsNone(extract_boundary("application/json"))
+        self.assertIsNone(extract_boundary(""))
+
+    def test_parse_multipart_stream(self):
+        """Stream parser must write file directly to disk without memory buffering."""
+        boundary = "BoundaryStreamingTest"
+        body = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="me"\r\n\r\n'
+            f"Alice\r\n"
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="zip_file"; filename="test_upload.zip"\r\n'
+            f"Content-Type: application/zip\r\n\r\n"
+            f"BINARY_DATA_FOR_STREAMING_TEST\r\n"
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="standalone"\r\n\r\n'
+            f"false\r\n"
+            f"--{boundary}--\r\n"
+        ).encode("utf-8")
+
+        stream = io.BytesIO(body)
+        fields, fpath, fname, fsize = parse_multipart_stream(
+            stream,
+            len(body),
+            boundary,
+            self.test_dir,
+            chunk_size=16,
+        )
+
+        self.assertEqual(fields.get("me"), "Alice")
+        self.assertEqual(fields.get("standalone"), "false")
+        self.assertEqual(fname, "test_upload.zip")
+        self.assertIsNotNone(fpath)
+        self.assertTrue(os.path.isfile(fpath))
+        with open(fpath, "rb") as f:
+            self.assertEqual(f.read(), b"BINARY_DATA_FOR_STREAMING_TEST")
+
+    def test_session_base_dir_and_cleanup(self):
+        """Must return valid disk directory and cleanup stale wa_session folders."""
+        base_dir = get_session_base_dir()
+        self.assertTrue(os.path.isdir(base_dir))
+
+        # Create dummy old session dir
+        dummy = os.path.join(base_dir, "wa_session_dummy_to_clean")
+        os.makedirs(dummy, exist_ok=True)
+        self.assertTrue(os.path.isdir(dummy))
+
+        cleanup_stale_sessions()
+        self.assertFalse(os.path.exists(dummy))
+
+    def test_server_media_serving_and_range_requests(self):
+        """Server must serve media files under /media/{session_id}/ and support HTTP Range."""
+        zip_path = os.path.join(self.test_dir, "media_chat.zip")
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.writestr("_chat.txt", "[15/10/2024 10:00:00] Bob: <pièce jointe : test_photo.jpg>\n")
+            zf.writestr("test_photo.jpg", b"\xFF\xD8\xFF\xE0" + b"A" * 100)
+
+        with open(zip_path, "rb") as f:
+            zip_bytes = f.read()
+
+        boundary = "----MediaTestBoundary"
+        body = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="zip_file"; filename="media_chat.zip"\r\n'
+            f"Content-Type: application/zip\r\n\r\n"
+        ).encode("utf-8") + zip_bytes + (
+            f"\r\n--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="standalone"\r\n\r\n'
+            f"false\r\n"
+            f"--{boundary}--\r\n"
+        ).encode("utf-8")
+
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}/api/convert",
+            data=body,
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        )
+        resp = urllib.request.urlopen(req)
+        self.assertEqual(resp.status, 200)
+        session_id = json.loads(resp.read().decode("utf-8"))["session_id"]
+
+        # View must contain /media/{session_id}/test_photo.jpg
+        view_url = f"http://127.0.0.1:{self.port}/view/{session_id}"
+        view_html = urllib.request.urlopen(view_url).read().decode("utf-8")
+        self.assertIn(f"/media/{session_id}/test_photo.jpg", view_html)
+
+        # Direct media request: GET /media/{session_id}/test_photo.jpg
+        media_url = f"http://127.0.0.1:{self.port}/media/{session_id}/test_photo.jpg"
+        media_resp = urllib.request.urlopen(media_url)
+        self.assertEqual(media_resp.status, 200)
+        self.assertEqual(media_resp.headers.get("Content-Type"), "image/jpeg")
+        self.assertEqual(media_resp.headers.get("Accept-Ranges"), "bytes")
+        content = media_resp.read()
+        self.assertTrue(content.startswith(b"\xFF\xD8\xFF\xE0"))
+
+        # HTTP Range request (for audio/video seeking)
+        range_req = urllib.request.Request(media_url, headers={"Range": "bytes=0-3"})
+        range_resp = urllib.request.urlopen(range_req)
+        self.assertEqual(range_resp.status, 206)
+        self.assertEqual(range_resp.headers.get("Content-Range"), "bytes 0-3/104")
+        self.assertEqual(range_resp.read(), b"\xFF\xD8\xFF\xE0")
+
+        # Resilient fallback: GET /view/test_photo.jpg
+        fallback_url = f"http://127.0.0.1:{self.port}/view/test_photo.jpg"
+        fallback_resp = urllib.request.urlopen(fallback_url)
+        self.assertEqual(fallback_resp.status, 200)
+        self.assertTrue(fallback_resp.read().startswith(b"\xFF\xD8\xFF\xE0"))
 
 
 if __name__ == "__main__":

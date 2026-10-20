@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 .venv/
+.temp_sessions/
 
 # WhatsApp Chat Viewer files
 /media

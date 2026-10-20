@@ -68,7 +68,7 @@ def generate_thumbnails(media_dir: str, max_size: tuple[int, int] = (400, 400), 
         except Exception:
             return False
 
-    max_workers = min(16, (os.cpu_count() or 2) + 2)
+    max_workers = min(4, (os.cpu_count() or 2))
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         results = executor.map(process_one, candidates)
     return sum(1 for r in results if r)
@@ -175,13 +175,16 @@ def render_attachment(
     standalone: bool = False,
     max_embed_size: int = 20 * 1024 * 1024,
     lang: str = DEFAULT_LANGUAGE,
+    media_url_prefix: str = "",
 ) -> str:
     """Return the HTML snippet for a given attachment filename.
 
     If standalone is True, encodes local files directly into Base64 Data URIs.
     """
     t = get_translations(lang)
-    if output_dir:
+    if media_url_prefix:
+        rel_media_dir = media_url_prefix.rstrip("/")
+    elif output_dir:
         rel_media_dir = os.path.relpath(media_dir, output_dir).replace("\\", "/")
     else:
         rel_media_dir = media_dir.replace("\\", "/")
@@ -305,12 +308,15 @@ def _collect_gallery_data(
     output_dir: str = "",
     standalone: bool = False,
     max_embed_size: int = 20 * 1024 * 1024,
+    media_url_prefix: str = "",
 ) -> dict:
     """Collect gallery items (photos, audios, docs, links) from parsed messages.
 
     Returns a dict with keys: photos, audios, docs, links.
     """
-    if output_dir:
+    if media_url_prefix:
+        rel_media = media_url_prefix.rstrip("/")
+    elif output_dir:
         rel_media = os.path.relpath(media_dir, output_dir).replace("\\", "/")
     else:
         rel_media = media_dir.replace("\\", "/")
@@ -380,6 +386,7 @@ def render_grouped_messages(
     standalone: bool = False,
     max_embed_size: int = 20 * 1024 * 1024,
     lang: str = DEFAULT_LANGUAGE,
+    media_url_prefix: str = "",
 ) -> tuple[str, list[str], tuple[str, str]]:
     """Render messages grouped by sender into HTML with date separators and system notifications.
 
@@ -484,6 +491,7 @@ def render_grouped_messages(
                     standalone=standalone,
                     max_embed_size=max_embed_size,
                     lang=lang,
+                    media_url_prefix=media_url_prefix,
                 )
             else:
                 if URL_PATTERN.search(clean_content):
@@ -549,6 +557,7 @@ def build_html(
     standalone: bool = False,
     max_embed_size: int = 20 * 1024 * 1024,
     lang: str = "auto",
+    media_url_prefix: str = "",
 ) -> str:
     """Build the full self-contained HTML page from parsed messages."""
     lang = resolve_language(lang)
@@ -575,6 +584,7 @@ def build_html(
         standalone=standalone,
         max_embed_size=max_embed_size,
         lang=lang,
+        media_url_prefix=media_url_prefix,
     )
 
     # Collect gallery data (photos, audios, docs, links)
@@ -584,6 +594,7 @@ def build_html(
         output_dir=output_dir,
         standalone=standalone,
         max_embed_size=max_embed_size,
+        media_url_prefix=media_url_prefix,
     )
     gallery_data_json = json.dumps(gallery_data, ensure_ascii=False)
     total_media_count = (
@@ -716,11 +727,16 @@ def build_html(
         "{{ t.date_from }} {{ start_date }}": f"{html.escape(t['date_from'])} {html.escape(start_date)}",
     }
 
-    result = base_html
-    for placeholder, val in replacements.items():
-        result = result.replace(placeholder, val)
+    try:
+        result = base_html
+        for placeholder, val in replacements.items():
+            result = result.replace(placeholder, val)
 
-    return minify_html(result) if minify else result
+        return minify_html(result) if minify else result
+    finally:
+        clear_base64_cache()
+        import gc
+        gc.collect()
 
 
 def minify_html(html_str: str) -> str:

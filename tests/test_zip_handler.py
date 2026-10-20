@@ -343,6 +343,18 @@ class TestZipHandler(unittest.TestCase):
                 safe_extract_zip(zip_path, extract_target)
             self.assertIn("Espace disque insuffisant", str(ctx.exception))
 
+    def test_unicode_filename_physical_offset_check(self):
+        """Must not raise false positive overlap error when UTF-8 length exceeds ASCII length."""
+        zip_path = os.path.join(self.test_dir, "unicode_names.zip")
+        unicode_name = "00027898-≡¥æë≡¥æû≡¥æí≡¥æÄ ≡¥É║≡¥æÖ≡¥æ£≡¥æñ.vcf"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.writestr("_chat.txt", "15/10/24 10:00 - Alice: Salut")
+            zf.writestr(unicode_name, "BEGIN:VCARD\nVERSION:3.0\nEND:VCARD\n")
+            zf.writestr("00027916-photo.jpg", b"\xFF\xD8\xFF\xE0" + b"0" * 50)
+
+        extract_target = os.path.join(self.test_dir, "unicode_target")
+        extracted = safe_extract_zip(zip_path, extract_target)
+        self.assertEqual(len(extracted), 3)
 
 
 if __name__ == "__main__":

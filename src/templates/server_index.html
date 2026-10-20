@@ -655,6 +655,10 @@
         selectedFile = file;
         fileName.textContent = file.name;
         fileSize.textContent = formatBytes(file.size);
+        if (file.size > 150 * 1024 * 1024) {
+          // Automatic safety: uncheck standalone on large files (>150 MB) to prevent browser & server memory exhaustion
+          optStandalone.checked = false;
+        }
         dropzone.style.display = 'none';
         filePreview.style.display = 'flex';
         submitBtn.disabled = false;
@@ -727,12 +731,12 @@
         const taskId = 'task_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
 
         const formData = new FormData();
-        formData.append('zip_file', selectedFile);
+        formData.append('task_id', taskId);
         formData.append('me', meNameInput.value.trim());
         formData.append('standalone', optStandalone.checked ? 'true' : 'false');
         formData.append('thumbs', optThumbs.checked ? 'true' : 'false');
         formData.append('ultra_perf', (optUltraPerf && optUltraPerf.checked) ? 'true' : 'false');
-        formData.append('task_id', taskId);
+        formData.append('zip_file', selectedFile);
 
         // Start progress polling
         function pollProgress() {
@@ -786,7 +790,7 @@
         progressTimer = setInterval(pollProgress, 120);
 
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/api/convert', true);
+        xhr.open('POST', '/api/convert?task_id=' + encodeURIComponent(taskId), true);
 
         xhr.upload.onprogress = e => {
           if (e.lengthComputable) {
