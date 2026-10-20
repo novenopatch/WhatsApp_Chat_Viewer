@@ -279,10 +279,10 @@ def run_server(host: str = "127.0.0.1", port: int = 8080, open_browser: bool = T
     url = f"http://{host}:{port}"
 
     print(f"\n=======================================================")
-    print(f"🌐 WhatsApp Chat Viewer - Mode Serveur Web démarré")
-    print(f"👉 Ouvrez votre navigateur sur : {url}")
-    print(f"📦 Glissez-déposez vos fichiers .zip directement dans la page")
-    print(f"🛑 Appuyez sur Ctrl+C pour arrêter le serveur.")
+    print(f"  WhatsApp Chat Viewer — Serveur Web local")
+    print(f"  ➜ Interface accessible sur : {url}")
+    print(f"  • Glissez-déposez vos fichiers .zip directement dans la page")
+    print(f"  • Appuyez sur Ctrl+C pour arrêter le serveur.")
     print(f"=======================================================\n")
 
     if open_browser:

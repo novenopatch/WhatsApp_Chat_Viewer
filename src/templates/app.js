@@ -818,7 +818,9 @@
     document.body.classList.toggle('dark-mode', isDark);
     document.body.classList.toggle('light-mode', !isDark);
     if (themeIcon) {
-      themeIcon.textContent = isDark ? '☀️' : '🌙';
+      themeIcon.innerHTML = isDark
+        ? '<svg class="lucide lucide-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>'
+        : '<svg class="lucide lucide-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
     }
     if (themeToggleBtn) {
       themeToggleBtn.title = isDark ? 'Passer au mode clair' : 'Passer au mode sombre';
@@ -956,7 +958,11 @@
     function applyWallpaper(on) {
       wallpaperOn = on;
       document.body.classList.toggle('wallpaper-on', on);
-      if (wallpaperIcon) wallpaperIcon.textContent = on ? '🏔️' : '🏞️';
+      if (wallpaperIcon) {
+        wallpaperIcon.innerHTML = on
+          ? '<svg class="lucide lucide-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>'
+          : '<svg class="lucide lucide-image-off" viewBox="0 0 24 24"><line x1="2" x2="22" y1="2" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.82-2.82"/><path d="M13.5 13.5 6 21"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L14 13"/><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/></svg>';
+      }
       localStorage.setItem('wa_wallpaper', on ? '1' : '0');
     }
 
@@ -985,7 +991,7 @@
         if (opt.value) {
           const sOpt = document.createElement('option');
           sOpt.value = opt.value;
-          sOpt.textContent = '👤 ' + opt.value;
+          sOpt.textContent = opt.value;
           filterSender.appendChild(sOpt);
         }
       });
@@ -1506,7 +1512,7 @@
       const photoPanel = document.getElementById('gp-photos');
       if (!photoPanel) return;
       if (photos.length === 0) {
-        photoPanel.innerHTML = '<div class="g-empty">📷 Aucune photo ou vidéo</div>';
+        photoPanel.innerHTML = '<div class="g-empty"><svg class="lucide lucide-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Aucune photo ou vidéo</div>';
         return;
       }
       let grid = photoPanel.querySelector('.g-photo-grid');
@@ -1568,7 +1574,7 @@
       const audioPanel = document.getElementById('gp-audios');
       if (!audioPanel) return;
       if (audios.length === 0) {
-        audioPanel.innerHTML = '<div class="g-empty">🎤 Aucune note vocale</div>';
+        audioPanel.innerHTML = '<div class="g-empty"><svg class="lucide lucide-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg> Aucune note vocale</div>';
         return;
       }
       let list = audioPanel.querySelector('.g-audio-list');
@@ -1589,7 +1595,7 @@
         audio.src = a.src;
         const metaEl = document.createElement('div');
         metaEl.className = 'g-audio-meta';
-        metaEl.textContent = '🎤 ' + a.sender + ' · ' + a.time;
+        metaEl.textContent = a.sender + ' · ' + a.time;
         const jumpBtn = document.createElement('button');
         jumpBtn.className = 'g-jump-link';
         jumpBtn.textContent = 'Aller au message ➔';
@@ -1606,7 +1612,7 @@
       const docPanel = document.getElementById('gp-docs');
       if (!docPanel) return;
       if (allDocs.length === 0) {
-        docPanel.innerHTML = '<div class="g-empty">📄 Aucun document ou lien</div>';
+        docPanel.innerHTML = '<div class="g-empty"><svg class="lucide lucide-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg> Aucun document ou lien</div>';
         return;
       }
       let list = docPanel.querySelector('.g-doc-list');
@@ -1629,11 +1635,13 @@
         a.href = item.href || '#';
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
-        const icon = item.type === 'doc' ? '📄' : '🔗';
+        const iconSvg = item.type === 'doc'
+          ? '<svg class="lucide lucide-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>'
+          : '<svg class="lucide lucide-link-2" viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg>';
         const label = item.label || item.href || '';
         const iconEl = document.createElement('span');
         iconEl.className = 'g-doc-icon';
-        iconEl.textContent = icon;
+        iconEl.innerHTML = iconSvg;
         const info = document.createElement('div');
         info.className = 'g-doc-info';
         const labelEl = document.createElement('div');

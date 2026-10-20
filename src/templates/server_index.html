@@ -386,20 +386,64 @@
       font-size: 12px;
       color: var(--text-muted);
     }
+
+    /* Lucide Icons support */
+    .lucide {
+      width: 1.15em;
+      height: 1.15em;
+      stroke-width: 2;
+      stroke: currentColor;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vertical-align: -0.18em;
+      display: inline-block;
+    }
+    .header-icon .lucide {
+      width: 36px;
+      height: 36px;
+      stroke: var(--wa-green);
+    }
+    .dropzone-icon .lucide {
+      width: 44px;
+      height: 44px;
+      stroke: var(--wa-teal);
+    }
+    .file-icon .lucide {
+      width: 24px;
+      height: 24px;
+      stroke: var(--wa-teal);
+    }
+    .checkbox-label .lucide {
+      margin-right: 4px;
+    }
+    .btn-submit .lucide,
+    .btn-action .lucide {
+      width: 1.15em;
+      height: 1.15em;
+      margin-right: 6px;
+      vertical-align: -0.15em;
+    }
+    .result-title .lucide {
+      width: 1.2em;
+      height: 1.2em;
+      margin-right: 6px;
+      vertical-align: -0.15em;
+    }
   </style>
 </head>
 <body>
 
   <div class="container">
     <div class="header">
-      <div class="header-icon">💬</div>
+      <div class="header-icon"><svg class="lucide lucide-message-square" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
       <h1>WhatsApp Chat Viewer</h1>
       <p>Glissez-déposez votre archive ZIP d'export WhatsApp pour la visualiser instantanément</p>
     </div>
 
     <!-- Dropzone Area -->
     <div class="dropzone" id="dropzone">
-      <div class="dropzone-icon">📥</div>
+      <div class="dropzone-icon"><svg class="lucide lucide-upload-cloud" viewBox="0 0 24 24"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg></div>
       <div class="dropzone-title">Glissez votre fichier WhatsApp (.zip) ici</div>
       <div class="dropzone-desc">ou cliquez pour sélectionner un fichier sur votre appareil</div>
       <div class="dropzone-badge">Extraction sécurisée &amp; protection anti-bombe ZIP</div>
@@ -409,7 +453,7 @@
     <!-- Selected File Preview -->
     <div class="file-preview" id="file-preview">
       <div class="file-info">
-        <span class="file-icon">📦</span>
+        <span class="file-icon"><svg class="lucide lucide-file-archive" viewBox="0 0 24 24"><path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/></svg></span>
         <div>
           <div class="file-name" id="file-name">archive.zip</div>
           <div class="file-size" id="file-size">0 Mo</div>
@@ -428,7 +472,7 @@
       <label class="checkbox-row">
         <input type="checkbox" id="opt-standalone" checked>
         <div>
-          <div class="checkbox-label">📦 Mode Fichier Unique (Standalone)</div>
+          <div class="checkbox-label"><svg class="lucide lucide-package" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg> Mode Fichier Unique (Standalone)</div>
           <div class="checkbox-desc">Embarque toutes les photos et audios en Base64 pour produire un seul fichier HTML téléchargeable et autonome.</div>
         </div>
       </label>
@@ -436,13 +480,13 @@
       <label class="checkbox-row">
         <input type="checkbox" id="opt-thumbs" checked>
         <div>
-          <div class="checkbox-label">🖼️ Générer des miniatures optimisées</div>
+          <div class="checkbox-label"><svg class="lucide lucide-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg> Générer des miniatures optimisées</div>
           <div class="checkbox-desc">Accélère considérablement le défilement et le rendu initial pour les conversations volumineuses.</div>
         </div>
       </label>
 
       <button type="button" class="btn-submit" id="submit-btn" disabled>
-        <span>🚀</span>
+        <svg class="lucide lucide-rocket" viewBox="0 0 24 24"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
         <span>Convertir et Visualiser</span>
       </button>
     </div>
@@ -460,9 +504,9 @@
       <div class="result-title" id="result-title">Conversion réussie !</div>
       <div class="result-desc" id="result-desc">La discussion a été traitée avec succès.</div>
       <div class="result-actions">
-        <a href="#" class="btn-action btn-primary" id="btn-view" target="_blank">👁️ Ouvrir le visualiseur</a>
-        <a href="#" class="btn-action btn-secondary" id="btn-download">💾 Télécharger le fichier HTML</a>
-        <button type="button" class="btn-action btn-secondary" id="btn-reset">↺ Autre conversion</button>
+        <a href="#" class="btn-action btn-primary" id="btn-view" target="_blank"><svg class="lucide lucide-external-link" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg> Ouvrir le visualiseur</a>
+        <a href="#" class="btn-action btn-secondary" id="btn-download"><svg class="lucide lucide-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg> Télécharger le fichier HTML</a>
+        <button type="button" class="btn-action btn-secondary" id="btn-reset"><svg class="lucide lucide-refresh-cw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg> Autre conversion</button>
       </div>
     </div>
   </div>
@@ -603,7 +647,7 @@
               setTimeout(() => {
                 progressBox.style.display = 'none';
                 resultBox.className = 'result-box';
-                resultTitle.textContent = '✅ Conversion terminée avec succès !';
+                resultTitle.innerHTML = '<svg class="lucide lucide-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Conversion terminée avec succès !';
                 resultDesc.textContent = `${res.messages.toLocaleString()} messages et médias traités avec succès.`;
                 btnView.href = `/view/${res.session_id}`;
                 btnDownload.href = `/download/${res.session_id}`;
@@ -629,7 +673,7 @@
       function showError(msg) {
         progressBox.style.display = 'none';
         resultBox.className = 'result-box error';
-        resultTitle.textContent = '❌ Erreur de conversion';
+        resultTitle.innerHTML = '<svg class="lucide lucide-alert-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg> Erreur de conversion';
         resultDesc.textContent = msg;
         btnView.style.display = 'none';
         btnDownload.style.display = 'none';

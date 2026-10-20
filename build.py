@@ -79,7 +79,7 @@ from src.zip_handler import (
 def main() -> None:
     """Main CLI execution flow."""
     cli_args = parse_args()
-    print(f"🚀 WhatsApp Chat Viewer v{__version__}")
+    print(f"WhatsApp Chat Viewer v{__version__}")
     if getattr(cli_args, "serve", False):
         from src.server import run_server
         run_server(host=cli_args.host, port=cli_args.port)
@@ -95,12 +95,12 @@ def main() -> None:
     print()
 
     if not os.path.isfile(chat_file):
-        print(f"❌ Fichier introuvable : {chat_file}")
+        print(f"✖ Erreur : Fichier introuvable : {chat_file}")
         sys.exit(1)
 
     messages = parse_chat(chat_file)
     if not messages:
-        print("⚠️  Aucun message trouvé. Vérifiez le fichier de chat.")
+        print("! Attention : Aucun message trouvé. Vérifiez le fichier de chat.")
         sys.exit(1)
 
     attendees = list(dict.fromkeys(msg["sender"] for msg in messages))
@@ -109,24 +109,24 @@ def main() -> None:
         detected_me = auto_detect_me(attendees, context_hint=context_hint)
         if detected_me:
             me_user = detected_me
-            print(f"💡 Interlocuteur 'Moi' auto-détecté : {me_user}")
+            print(f"  ℹ Interlocuteur 'Moi' auto-détecté : {me_user}")
     else:
         resolved = resolve_me_user(me_user, attendees)
         if resolved:
             me_user = resolved
-            print(f"👤 Interlocuteur 'Moi' configuré : {me_user}")
+            print(f"  ℹ Interlocuteur 'Moi' configuré : {me_user}")
         else:
-            print(f"⚠️  '{me_user}' n'a pas été trouvé parmi les participants : {', '.join(attendees)}")
+            print(f"! Attention : '{me_user}' n'a pas été trouvé parmi les participants : {', '.join(attendees)}")
 
     if getattr(cli_args, "thumbs", False) or os.environ.get("GENERATE_THUMBS"):
-        print("🖼️  Génération des miniatures d'images...")
+        print("• Génération des miniatures d'images...")
         num_thumbs = generate_thumbnails(media_dir)
-        print(f"   Miniatures générées : {num_thumbs}")
+        print(f"  Miniatures générées : {num_thumbs}")
 
     standalone = getattr(cli_args, "standalone", False)
     max_embed_bytes = getattr(cli_args, "max_embed_size", 20) * 1024 * 1024
     if standalone:
-        print("📦 Mode Standalone activé : les médias sont intégrés en Base64 dans le HTML.")
+        print("• Mode Standalone activé : intégration des médias en Base64 dans le HTML.")
 
     html_output = build_html(
         messages,
@@ -146,8 +146,8 @@ def main() -> None:
     orig_kb = len(html_output.encode("utf-8")) / 1024
     gz_kb = os.path.getsize(gz_output) / 1024
     ratio = (1 - (gz_kb / orig_kb)) * 100 if orig_kb else 0
-    print(f"✅ Fichier généré : {output_file}  ({len(messages):,} messages, {orig_kb:.1f} Ko)")
-    print(f"📦 Version Gzip    : {gz_output}  ({gz_kb:.1f} Ko, -{ratio:.1f}%)")
+    print(f"✓ Fichier généré  : {output_file}  ({len(messages):,} messages, {orig_kb:.1f} Ko)")
+    print(f"  └─ Gzip         : {gz_output}  ({gz_kb:.1f} Ko, -{ratio:.1f}%)")
 
     # Compression Brotli (optionnelle — nécessite `pip install brotli`)
     try:
@@ -158,7 +158,7 @@ def main() -> None:
             f.write(brotli.compress(html_bytes, quality=11))
         br_kb = os.path.getsize(br_output) / 1024
         br_ratio = (1 - (br_kb / orig_kb)) * 100 if orig_kb else 0
-        print(f"🗜️  Version Brotli  : {br_output}  ({br_kb:.1f} Ko, -{br_ratio:.1f}%)")
+        print(f"  └─ Brotli       : {br_output}  ({br_kb:.1f} Ko, -{br_ratio:.1f}%)")
     except ImportError:
         pass  # brotli non installé — compression Gzip suffisante
 

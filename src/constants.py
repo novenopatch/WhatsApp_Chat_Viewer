@@ -8,6 +8,8 @@ MESSAGE_PATTERN = re.compile(
 )
 
 ATTACHMENT_KEYWORDS = ["pièce jointe :", "file attached:", "attached:"]
+# Note: "pièce jointe" is the French WhatsApp export keyword; "file attached" / "attached" are
+# English/universal equivalents. Both must remain here to parse exports from any locale.
 
 DATE_FORMATS = [
     "%d/%m/%y %H:%M:%S",

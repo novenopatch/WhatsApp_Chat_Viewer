@@ -406,8 +406,8 @@ def extract_whatsapp_zip(
         base_name, _ = os.path.splitext(os.path.abspath(clean_zip))
         extract_dir = base_name
 
-    print(f"📦 Archive ZIP WhatsApp détectée : {clean_zip}")
-    print(f"📂 Extraction vers : {extract_dir} …")
+    print(f"• Archive ZIP détectée : {clean_zip}")
+    print(f"  Extraction vers : {extract_dir} …")
     safe_extract_zip(
         clean_zip,
         extract_dir,

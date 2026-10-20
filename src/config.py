@@ -146,11 +146,11 @@ def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str |
                 chat_file = found
                 candidate = os.path.join(d, "media")
                 media_dir = candidate if os.path.isdir(candidate) else d
-                print(f"📂 Dossier CLI détecté : {d}")
+                print(f"• Dossier CLI détecté : {d}")
             else:
-                print(f"⚠️  Aucun fichier .txt trouvé dans : {d}")
+                print(f"! Aucun fichier .txt trouvé dans : {d}")
         else:
-            print(f"⚠️  Dossier introuvable : {d}")
+            print(f"! Dossier introuvable : {d}")
 
     if chat_file is None and args.chat:
         chat_file = os.path.expanduser(args.chat)
@@ -166,7 +166,7 @@ def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str |
     dotenv_path = os.path.join(os.getcwd(), ".env")
     if os.path.isfile(dotenv_path):
         env = parse_dotenv(dotenv_path)
-        print("📄 Fichier .env détecté → lecture de la configuration…")
+        print("• Fichier .env détecté → lecture de la configuration…")
 
         if chat_file is None:
             zip_env = env.get("ZIP_FILE", "").strip()

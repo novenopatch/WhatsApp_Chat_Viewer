@@ -6,6 +6,34 @@
     box-sizing: border-box;
 }
 
+/* Lucide Icons support */
+.lucide {
+    width: 1.15em;
+    height: 1.15em;
+    stroke-width: 2;
+    stroke: currentColor;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vertical-align: -0.18em;
+    display: inline-block;
+}
+
+.gallery-toggle-btn .lucide,
+.theme-toggle-btn .lucide {
+    width: 1.25em;
+    height: 1.25em;
+    vertical-align: middle;
+}
+
+.filter-chip .lucide,
+.g-tab .lucide {
+    width: 1em;
+    height: 1em;
+    margin-right: 4px;
+    vertical-align: -0.15em;
+}
+
 :root {
     --bg-body: #efeae2;
     --bg-topbar: #008069;
@@ -172,9 +200,15 @@ body {
 .search-icon {
     position: absolute;
     right: 80px;
-    font-size: 13px;
     color: var(--input-placeholder);
     pointer-events: none;
+    display: flex;
+    align-items: center;
+}
+
+.search-icon .lucide {
+    width: 14px;
+    height: 14px;
 }
 
 .search-nav button {
