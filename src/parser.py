@@ -26,6 +26,7 @@ from src.constants import (
     REACTION_LINE_PATTERN,
     TRAILING_REACTION_PATTERN,
 )
+from src.i18n import get_day_names, get_month_names, get_media_type_map, DEFAULT_LANGUAGE
 
 
 def parse_date(date_str: str) -> datetime | None:
@@ -39,10 +40,11 @@ def parse_date(date_str: str) -> datetime | None:
     return None
 
 
-def format_day_label(dt: datetime) -> str:
-    """Return a human-readable French day label, e.g. 'Lundi 3 mars 2024'."""
-    day_names = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
-    return f"{day_names[dt.weekday()]} {dt.day} {FRENCH_MONTHS[dt.month]} {dt.year}"
+def format_day_label(dt: datetime, lang: str = DEFAULT_LANGUAGE) -> str:
+    """Return a human-readable localised day label, e.g. 'Monday 3 March 2024'."""
+    day_names = get_day_names(lang)
+    month_names = get_month_names(lang)
+    return f"{day_names[dt.weekday()]} {dt.day} {month_names[dt.month]} {dt.year}"
 
 
 def get_attachment_filename(raw_content: str) -> str | None:
@@ -70,23 +72,25 @@ def get_system_icon(content: str) -> str:
     return "ℹ️"
 
 
-def get_media_type_label(filename: str) -> str:
-    """Return a labeled media type string for a WhatsApp attachment filename."""
+def get_media_type_label(filename: str, lang: str = DEFAULT_LANGUAGE) -> str:
+    """Return a localised media type label string for a WhatsApp attachment filename."""
+    media_map = get_media_type_map(lang)
     parts = filename.split("-")
     if len(parts) >= 2:
-        label = MEDIA_TYPE_MAP.get(parts[1].upper())
+        label = media_map.get(parts[1].upper())
         if label:
             return label
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if ext in ("jpg", "jpeg", "png", "gif"):
-        return "📷 Photo"
+        return media_map.get("PHOTO", "📷 Photo")
     if ext in ("mp4", "mov", "3gp"):
-        return "🎬 Vidéo"
+        return media_map.get("VIDEO", "🎬 Video")
     if ext in ("opus", "mp3", "ogg", "m4a", "aac"):
-        return "🎤 Audio"
+        return media_map.get("AUDIO", "🎤 Audio")
     if ext == "webp":
-        return "🎭 Sticker"
-    return "📎 Autre"
+        return media_map.get("STICKER", "🎭 Sticker")
+    from src.i18n import get_translations
+    return get_translations(lang).get("media_other", "📎 Other")
 
 
 def format_inline_markdown(text: str) -> str:
@@ -264,6 +268,9 @@ def resolve_quote_target_id(
 
 def process_chat_reactions(messages: list[dict], max_lookback: int = 300) -> list[dict]:
     """Link reactions to previous messages and extract trailing reactions with O(N) sliding lookback."""
+    if not messages or messages[0].get("_reactions_processed"):
+        return messages
+
     for idx, msg in enumerate(messages):
         # 1. Trailing reactions
         msg_content = msg.get("content", "")
@@ -295,6 +302,7 @@ def process_chat_reactions(messages: list[dict], max_lookback: int = 300) -> lis
             if not target_found:
                 msg["is_reaction_event"] = False
 
+    messages[0]["_reactions_processed"] = True
     return messages
 
 
@@ -319,6 +327,17 @@ def iter_chat(file_path: str) -> Iterator[dict]:
     with open(file_path, "r", encoding="utf-8") as f:
         for raw_line in f:
             line = raw_line.strip()
+            if not line:
+                if current_msg is not None:
+                    current_msg["content"] += "\n"
+                continue
+
+            # Fast-path: WhatsApp message lines start with '[' or LTR mark '\u200e'
+            if not (line.startswith("[") or line.startswith("\u200e")):
+                if current_msg is not None:
+                    current_msg["content"] += "\n" + line
+                continue
+
             match = MESSAGE_PATTERN.match(line)
             if match:
                 if current_msg is not None:

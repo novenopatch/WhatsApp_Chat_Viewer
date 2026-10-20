@@ -38,6 +38,8 @@ def safe_extract_zip(
     max_files: int | None = None,
     max_ratio: float | None = None,
     min_ratio_threshold: int = DEFAULT_MIN_RATIO_THRESHOLD,
+    progress_callback: Any = None,
+    ultra_perf: bool = False,
 ) -> list[str]:
     """Safely extract all files from a ZIP archive into target_dir.
 
@@ -85,7 +87,7 @@ def safe_extract_zip(
     created_dirs: list[str] = []
     current_dst: str | None = None
     total_extracted_bytes = 0
-    chunk_size = 64 * 1024
+    chunk_size = (1024 * 1024) if ultra_perf else (64 * 1024)
 
     with zipfile.ZipFile(clean_zip, "r") as zf:
         members = zf.infolist()
@@ -296,6 +298,20 @@ def safe_extract_zip(
                 extracted_files.append(dest_path)
                 current_dst = None
 
+                if progress_callback:
+                    try:
+                        progress_callback({
+                            "phase": "extracting",
+                            "files_extracted": len(extracted_files),
+                            "total_files": len(members),
+                            "bytes_extracted": total_extracted_bytes,
+                            "total_bytes": total_declared_size,
+                            "current_file": os.path.basename(member.filename),
+                            "percent": min(100, int((total_extracted_bytes / max(total_declared_size, 1)) * 100)),
+                        })
+                    except Exception:
+                        pass
+
         except Exception:
             # Clean up active partial file and all previously extracted files on failure
             if current_dst and (os.path.isfile(current_dst) or os.path.islink(current_dst)):
@@ -396,6 +412,9 @@ def extract_whatsapp_zip(
     max_total_size: int | None = None,
     max_files: int | None = None,
     max_ratio: float | None = None,
+    progress_callback: Any = None,
+    ultra_perf: bool = False,
+    verbose: bool = False,
 ) -> tuple[str, str]:
     """High-level function: extract a WhatsApp ZIP export and return (chat_file, media_dir)."""
     clean_zip = os.path.expanduser(zip_path)
@@ -406,14 +425,22 @@ def extract_whatsapp_zip(
         base_name, _ = os.path.splitext(os.path.abspath(clean_zip))
         extract_dir = base_name
 
-    print(f"• Archive ZIP détectée : {clean_zip}")
-    print(f"  Extraction vers : {extract_dir} …")
+    if verbose:
+        perf_mode_str = " [Ultra-Perf]" if ultra_perf else ""
+        print(f"• Archive ZIP détectée{perf_mode_str} : {clean_zip}")
+        print(f"  Extraction vers : {extract_dir} …")
+    else:
+        print(f"• Archive ZIP détectée : {clean_zip}")
+        print(f"  Extraction vers : {extract_dir} …")
+
     safe_extract_zip(
         clean_zip,
         extract_dir,
         max_total_size=max_total_size,
         max_files=max_files,
         max_ratio=max_ratio,
+        progress_callback=progress_callback,
+        ultra_perf=ultra_perf,
     )
 
     chat_file, media_dir = find_chat_in_extracted(extract_dir)

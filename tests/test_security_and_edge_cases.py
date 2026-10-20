@@ -84,8 +84,10 @@ class TestSecurityAndEdgeCases(unittest.TestCase):
         self.assertFalse(edited)
 
         # Empty messages list to build_html
-        html_out = build_html([], "media")
-        self.assertIn("Aucun message", html_out)
+        html_out_en = build_html([], "media")
+        self.assertIn("No messages", html_out_en)
+        html_out_fr = build_html([], "media", lang="fr")
+        self.assertIn("Aucun message", html_out_fr)
 
     def test_multiline_code_blocks_and_markdown_nesting(self):
         """Ensure code blocks and mixed formatting don't produce corrupted tags."""

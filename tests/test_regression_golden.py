@@ -53,17 +53,17 @@ class TestRegressionGolden(unittest.TestCase):
         self.assertEqual(stats["real_total"], 8)
         self.assertEqual(len(stats["sender_counts"]), 3)  # Alice, Bob, Charlie
 
-        # 3. HTML Rendering
+        # 3. HTML Rendering (Default English)
         html = build_html(messages, "media", me_user="Alice")
 
         # HTML Structure invariants
         self.assertTrue(html.startswith("<!DOCTYPE html>"))
         self.assertTrue(html.rstrip().endswith("</html>"))
 
-        # Date separators: 2 distinct days (10/10/24 and 11/10/24)
+        # Date separators: 2 distinct days (10/10/24 and 11/10/24) in English
         self.assertEqual(html.count('class="date-separator"'), 2)
-        self.assertIn("Jeudi 10 octobre 2024", html)
-        self.assertIn("Vendredi 11 octobre 2024", html)
+        self.assertIn("Thursday 10 October 2024", html)
+        self.assertIn("Friday 11 October 2024", html)
 
         # System messages: 2 system messages styled with icon pill
         self.assertEqual(html.count('class="system-message"'), 2)
@@ -81,11 +81,17 @@ class TestRegressionGolden(unittest.TestCase):
         self.assertIn("<strong>projet</strong>", html)
         self.assertIn('<a href="https://example.com/docs"', html)
         self.assertIn('<pre><code>', html)
-        self.assertIn('<span class="edited-badge">modifié</span>', html)
+        self.assertIn('<span class="edited-badge">edited</span>', html)
 
         # User identification & classes
         self.assertIn('data-initial-me="Alice"', html)
         self.assertIn('message-row is-me" data-sender="Alice"', html)
+
+        # 4. Multilingual HTML Rendering (French)
+        html_fr = build_html(messages, "media", me_user="Alice", lang="fr")
+        self.assertIn("Jeudi 10 octobre 2024", html_fr)
+        self.assertIn("Vendredi 11 octobre 2024", html_fr)
+        self.assertIn('<span class="edited-badge">modifié</span>', html_fr)
 
 
     def test_realistic_whatsapp_export_pipeline(self):

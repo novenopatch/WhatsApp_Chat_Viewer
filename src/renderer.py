@@ -15,6 +15,7 @@ except ImportError:
     HAS_PIL = False
 
 from src.constants import AVATAR_COLORS, URL_PATTERN
+from src.i18n import get_translations, resolve_language, DEFAULT_LANGUAGE
 from src.parser import (
     format_day_label,
     is_system_message,
@@ -94,6 +95,14 @@ MIME_MAP = {
 }
 
 
+_BASE64_CACHE: dict[tuple[str, int, bool], str | None] = {}
+
+
+def clear_base64_cache() -> None:
+    """Clear in-memory cache of Base64 encoded media files."""
+    _BASE64_CACHE.clear()
+
+
 def to_base64_data_uri(
     file_path: str,
     max_size: int = 20 * 1024 * 1024,
@@ -102,12 +111,19 @@ def to_base64_data_uri(
     """Read a local media file and return its Base64 Data URI if within max_size.
 
     Compresses and resizes large photos before Base64 encoding to keep HTML lightweight.
+    Results are cached in memory to avoid redundant reads/encodings.
     """
     if not file_path or not os.path.isfile(file_path):
         return None
+
+    cache_key = (file_path, max_size, optimize_large_images)
+    if cache_key in _BASE64_CACHE:
+        return _BASE64_CACHE[cache_key]
+
     try:
         size = os.path.getsize(file_path)
         if size > max_size:
+            _BASE64_CACHE[cache_key] = None
             return None
         _, ext = os.path.splitext(file_path.lower())
         mime = MIME_MAP.get(ext, "application/octet-stream")
@@ -124,14 +140,19 @@ def to_base64_data_uri(
                             im = im.convert("RGB")
                         im.save(buf, format="JPEG" if ext in (".jpg", ".jpeg") else im.format, quality=82, optimize=True)
                         encoded = base64.b64encode(buf.getvalue()).decode("ascii")
-                        return f"data:{mime};base64,{encoded}"
+                        res = f"data:{mime};base64,{encoded}"
+                        _BASE64_CACHE[cache_key] = res
+                        return res
             except Exception:
                 pass  # Fall back to raw bytes
 
         with open(file_path, "rb") as f:
             encoded = base64.b64encode(f.read()).decode("ascii")
-        return f"data:{mime};base64,{encoded}"
+        res = f"data:{mime};base64,{encoded}"
+        _BASE64_CACHE[cache_key] = res
+        return res
     except OSError:
+        _BASE64_CACHE[cache_key] = None
         return None
 
 
@@ -153,11 +174,13 @@ def render_attachment(
     output_dir: str = "",
     standalone: bool = False,
     max_embed_size: int = 20 * 1024 * 1024,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Return the HTML snippet for a given attachment filename.
 
     If standalone is True, encodes local files directly into Base64 Data URIs.
     """
+    t = get_translations(lang)
     if output_dir:
         rel_media_dir = os.path.relpath(media_dir, output_dir).replace("\\", "/")
     else:
@@ -198,15 +221,15 @@ def render_attachment(
         return (
             f'<div class="video-container">'
             f'<video controls preload="none" class="media-video">'
-            f'<source src="{esc_filepath}">Vidéo non supportée.</video>'
-            f'<button type="button" class="video-fs-btn" title="Plein écran">⛶</button>'
+            f'<source src="{esc_filepath}">{html.escape(t["video_unsupported"])}</video>'
+            f'<button type="button" class="video-fs-btn" title="{html.escape(t["fullscreen_btn"])}">⛶</button>'
             f'</div>'
         )
     if filename.lower().endswith((".opus", ".mp3", ".ogg", ".m4a", ".aac")):
         return (
             f'<div class="audio-container">'
             f'<audio controls preload="none" src="{esc_filepath}"></audio>'
-            f'<button type="button" class="audio-speed-btn" title="Changer la vitesse (1x, 1.5x, 2x)">1x</button>'
+            f'<button type="button" class="audio-speed-btn" title="{html.escape(t["speed_btn_title"])}">1x</button>'
             f'</div>'
         )
     if filename.lower().endswith(".pdf"):
@@ -356,12 +379,15 @@ def render_grouped_messages(
     me_user: str | None = None,
     standalone: bool = False,
     max_embed_size: int = 20 * 1024 * 1024,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> tuple[str, list[str], tuple[str, str]]:
     """Render messages grouped by sender into HTML with date separators and system notifications.
 
     Returns:
         (html_string, attendees_list, (start_date_str, end_date_str))
     """
+    t = get_translations(lang)
+    clear_base64_cache()
     if not messages:
         return "", [], ("", "")
 
@@ -394,7 +420,7 @@ def render_grouped_messages(
                 )
                 grouped_html.append(
                     f'<div class="date-separator" data-date="{day_key}" data-month="{day_key[:7]}">'
-                    f'<span>{format_day_label(msg_dt)}</span>'
+                    f'<span>{format_day_label(msg_dt, lang=lang)}</span>'
                     f'</div>'
                 )
 
@@ -457,6 +483,7 @@ def render_grouped_messages(
                     output_dir=output_dir,
                     standalone=standalone,
                     max_embed_size=max_embed_size,
+                    lang=lang,
                 )
             else:
                 if URL_PATTERN.search(clean_content):
@@ -468,16 +495,16 @@ def render_grouped_messages(
                 group_media_types.add(sub_media_type)
 
             time_display = cur["dt"].strftime("%H:%M") if cur.get("dt") else cur["date"]
-            edited_badge = ' <span class="edited-badge">modifié</span>' if was_edited else ""
-            status_check = ' <span class="msg-status" title="Lu">✓✓</span>' if is_me else ""
+            edited_badge = f' <span class="edited-badge">{html.escape(t["edited_badge"])}</span>' if was_edited else ""
+            status_check = f' <span class="msg-status" title="{html.escape(t["read_status_title"])}">✓✓</span>' if is_me else ""
             type_class = f" media-type-{sub_media_type}" if sub_media_type else ""
             sub_class = f"with-file{type_class}" if has_file else (type_class.strip())
             type_attr = f' data-media-type="{sub_media_type}"' if sub_media_type else ""
 
             reactions_html = render_reactions_html(cur.get("reactions", []), msg_id=f"msg-{i}")
             react_btn_html = (
-                f'<button type="button" class="wa-react-btn" title="Réagir" '
-                f'aria-label="Réagir au message" data-msg-id="msg-{i}"><span>😊</span></button>'
+                f'<button type="button" class="wa-react-btn" title="{html.escape(t["react_btn_title"])}" '
+                f'aria-label="{html.escape(t["react_btn_aria"])}" data-msg-id="msg-{i}"><span>😊</span></button>'
             )
 
             group_texts.append(
@@ -521,10 +548,14 @@ def build_html(
     minify: bool = True,
     standalone: bool = False,
     max_embed_size: int = 20 * 1024 * 1024,
+    lang: str = "auto",
 ) -> str:
     """Build the full self-contained HTML page from parsed messages."""
+    lang = resolve_language(lang)
+    t = get_translations(lang)
+    clear_base64_cache()
     if not messages:
-        return "<!DOCTYPE html><html><body><p>Aucun message.</p></body></html>"
+        return f"<!DOCTYPE html><html><body><p>{t['no_message']}</p></body></html>"
 
     attendee_list = list(dict.fromkeys(msg["sender"] for msg in messages))
     color_map = {
@@ -543,6 +574,7 @@ def build_html(
         me_user=resolved_me,
         standalone=standalone,
         max_embed_size=max_embed_size,
+        lang=lang,
     )
 
     # Collect gallery data (photos, audios, docs, links)
@@ -561,8 +593,8 @@ def build_html(
         + len(gallery_data["links"])
     )
 
-    stats = compute_stats(messages)
-    stats_html = render_stats_html(stats, color_map)
+    stats = compute_stats(messages, lang=lang)
+    stats_html = render_stats_html(stats, color_map, lang=lang)
 
     # Collect search index for instant zero-DOM worker search
     search_index = []
@@ -573,10 +605,10 @@ def build_html(
     search_index_json = json.dumps(search_index, ensure_ascii=False)
 
     is_group = len(attendees) > 2
-    chat_label = "Conversation de groupe WhatsApp" if is_group else "Conversation WhatsApp"
+    chat_label = t["group_chat_label"] if is_group else t["chat_label"]
     title = f"{chat_label} - {' & '.join(attendees)}"
 
-    me_options = ['<option value="">-- Aucun (Tous à gauche) --</option>']
+    me_options = [f'<option value="">-- {html.escape(t["no_sender_option"])} --</option>']
     for a in attendees:
         sel = ' selected="selected"' if (resolved_me and a == resolved_me) else ''
         me_options.append(f'<option value="{html.escape(a)}"{sel}>{html.escape(a)}</option>')
@@ -586,7 +618,7 @@ def build_html(
         f'<span class="legend-item{" legend-active-me" if resolved_me == a else ""}" '
         f'data-sender="{html.escape(a)}" '
         f'onclick="setMeUser(\'{html.escape(a, quote=True)}\')" '
-        f'title="Cliquer pour afficher en tant que \'Moi\'">'
+        f'title="{html.escape(t["click_to_set_me"])}">'
         f'<span class="legend-dot" style="background:{color_map[a]};"></span>'
         f'{html.escape(a)}</span>'
         for a in attendees
@@ -601,6 +633,9 @@ def build_html(
     style_content = load_template_file("style.css") + "\n\n/* Dynamic Participant Color Variables */\n" + participant_css
     script_content = load_template_file("app.js")
     base_html = load_template_file("base.html")
+
+    # Inject the i18n catalogue as a JSON blob so app.js can use it at runtime.
+    i18n_json = json.dumps(t, ensure_ascii=False)
 
     replacements = {
         "{{ title }}": html.escape(title),
@@ -618,6 +653,67 @@ def build_html(
         "{{ gallery_data }}": gallery_data_json,
         "{{ search_index }}": search_index_json,
         "{{ media_count }}": str(total_media_count),
+        "{{ i18n_json }}": i18n_json,
+        "{{ lang }}": lang,
+        # Localised template strings used directly in base.html
+        "{{ t.search_placeholder }}": html.escape(t["search_placeholder"]),
+        "{{ t.search_prev_title }}": html.escape(t["search_prev_title"]),
+        "{{ t.search_next_title }}": html.escape(t["search_next_title"]),
+        "{{ t.gallery_btn_title }}": html.escape(t["gallery_btn_title"]),
+        "{{ t.gallery_btn_aria }}": html.escape(t["gallery_btn_aria"]),
+        "{{ t.wallpaper_btn_title }}": html.escape(t["wallpaper_btn_title"]),
+        "{{ t.wallpaper_btn_aria }}": html.escape(t["wallpaper_btn_aria"]),
+        "{{ t.print_btn_title }}": html.escape(t["print_btn_title"]),
+        "{{ t.print_btn_aria }}": html.escape(t["print_btn_aria"]),
+        "{{ t.theme_btn_title }}": html.escape(t["theme_btn_title"]),
+        "{{ t.theme_btn_aria }}": html.escape(t["theme_btn_aria"]),
+        "{{ t.date_from }}": html.escape(t["date_from"]),
+        "{{ t.date_to }}": html.escape(t["date_to"]),
+        "{{ t.filter_all_participants }}": html.escape(t["filter_all_participants"]),
+        "{{ t.filter_all_months }}": html.escape(t["filter_all_months"]),
+        "{{ t.filter_media_btn }}": html.escape(t["filter_media_btn"]),
+        "{{ t.filter_media_title }}": html.escape(t["filter_media_title"]),
+        "{{ t.filter_photos_btn }}": html.escape(t["filter_photos_btn"]),
+        "{{ t.filter_photos_title }}": html.escape(t["filter_photos_title"]),
+        "{{ t.filter_videos_btn }}": html.escape(t["filter_videos_btn"]),
+        "{{ t.filter_audios_btn }}": html.escape(t["filter_audios_btn"]),
+        "{{ t.filter_audios_title }}": html.escape(t["filter_audios_title"]),
+        "{{ t.filter_docs_btn }}": html.escape(t["filter_docs_btn"]),
+        "{{ t.filter_docs_title }}": html.escape(t["filter_docs_title"]),
+        "{{ t.filter_links_btn }}": html.escape(t["filter_links_btn"]),
+        "{{ t.filter_links_title }}": html.escape(t["filter_links_title"]),
+        "{{ t.filter_date_start }}": html.escape(t["filter_date_start"]),
+        "{{ t.filter_date_end }}": html.escape(t["filter_date_end"]),
+        "{{ t.filter_reset_btn }}": html.escape(t["filter_reset_btn"]),
+        "{{ t.filter_reset_title }}": html.escape(t["filter_reset_title"]),
+        "{{ t.timeline_title }}": html.escape(t["timeline_title"]),
+        "{{ t.gallery_modal_label }}": html.escape(t["gallery_modal_label"]),
+        "{{ t.gallery_title }}": html.escape(t["gallery_title"]),
+        "{{ t.gallery_close }}": html.escape(t["gallery_close"]),
+        "{{ t.gallery_tab_photos }}": html.escape(t["gallery_tab_photos"]),
+        "{{ t.gallery_tab_audios }}": html.escape(t["gallery_tab_audios"]),
+        "{{ t.gallery_tab_docs }}": html.escape(t["gallery_tab_docs"]),
+        "{{ t.lb_close_title }}": html.escape(t["lb_close_title"]),
+        "{{ t.lb_prev_title }}": html.escape(t["lb_prev_title"]),
+        "{{ t.lb_next_title }}": html.escape(t["lb_next_title"]),
+        "{{ t.lb_img_alt }}": html.escape(t["lb_img_alt"]),
+        "{{ t.lb_zoom_out }}": html.escape(t["lb_zoom_out"]),
+        "{{ t.lb_zoom_in }}": html.escape(t["lb_zoom_in"]),
+        "{{ t.lb_zoom_reset }}": html.escape(t["lb_zoom_reset"]),
+        "{{ t.lb_actual_size }}": html.escape(t["lb_actual_size"]),
+        "{{ t.lb_open_hd }}": html.escape(t["lb_open_hd"]),
+        "{{ t.lb_fullscreen }}": html.escape(t["lb_fullscreen"]),
+        "{{ t.reaction_picker_label }}": html.escape(t["reaction_picker_label"]),
+        "{{ t.reaction_thumb }}": html.escape(t["reaction_thumb"]),
+        "{{ t.reaction_heart }}": html.escape(t["reaction_heart"]),
+        "{{ t.reaction_laugh }}": html.escape(t["reaction_laugh"]),
+        "{{ t.reaction_surprised }}": html.escape(t["reaction_surprised"]),
+        "{{ t.reaction_sad }}": html.escape(t["reaction_sad"]),
+        "{{ t.reaction_pray }}": html.escape(t["reaction_pray"]),
+        "{{ t.scroll_top }}": html.escape(t["scroll_top"]),
+        "{{ t.scroll_bottom }}": html.escape(t["scroll_bottom"]),
+        "{{ t.me_selector_label }}": html.escape(t["me_selector_label"]),
+        "{{ t.date_from }} {{ start_date }}": f"{html.escape(t['date_from'])} {html.escape(start_date)}",
     }
 
     result = base_html

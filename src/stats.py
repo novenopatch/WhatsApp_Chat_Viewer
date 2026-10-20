@@ -3,10 +3,11 @@
 import html
 from collections import Counter
 from datetime import datetime
+from src.i18n import get_translations, DEFAULT_LANGUAGE
 from src.parser import is_system_message, get_attachment_filename, get_media_type_label, format_day_label
 
 
-def compute_stats(messages: list[dict]) -> dict:
+def compute_stats(messages: list[dict], lang: str = DEFAULT_LANGUAGE) -> dict:
     """Compute chat statistics (messages per sender, hourly activity, media types, etc.)."""
     real = [m for m in messages if not is_system_message(m["content"])]
 
@@ -21,7 +22,7 @@ def compute_stats(messages: list[dict]) -> dict:
             day_counts[m["dt"].strftime("%Y-%m-%d")] += 1
         fname = get_attachment_filename(m["content"])
         if fname:
-            media_counts[get_media_type_label(fname)] += 1
+            media_counts[get_media_type_label(fname, lang=lang)] += 1
 
     most_active = day_counts.most_common(1)[0] if day_counts else ("", 0)
     return {
@@ -35,8 +36,9 @@ def compute_stats(messages: list[dict]) -> dict:
     }
 
 
-def render_stats_html(stats: dict, color_map: dict[str, str]) -> str:
+def render_stats_html(stats: dict, color_map: dict[str, str], lang: str = DEFAULT_LANGUAGE) -> str:
     """Build the collapsible stats <details> HTML section."""
+    t = get_translations(lang)
     real_total = stats["real_total"]
 
     # ---- Sender bars ----
@@ -62,7 +64,7 @@ def render_stats_html(stats: dict, color_map: dict[str, str]) -> str:
         pct = cnt / max_hour * 100 if max_hour else 0
         lbl = f"{h}h" if h % 4 == 0 else ""
         hour_bars += (
-            f'<div class="hcol" title="{h}h : {cnt:,} messages">'
+            f'<div class="hcol" title="{h}h : {cnt:,} {t["stat_msgs_hour"]}">'
             f'<div class="hbar" style="height:{pct:.0f}%"></div>'
             f'<span class="hlbl">{lbl}</span>'
             f'</div>'
@@ -72,13 +74,13 @@ def render_stats_html(stats: dict, color_map: dict[str, str]) -> str:
     media_rows = "".join(
         f'<div class="mrow"><span>{lbl}</span><strong>{cnt:,}</strong></div>'
         for lbl, cnt in stats["media_counts"].most_common()
-    ) or "<em style='color:var(--text-secondary)'>Aucun média</em>"
+    ) or f"<em style='color:var(--text-secondary)'>{t['stats_no_media']}</em>"
 
     # ---- General info ----
     mad_str, mad_cnt = stats["most_active"]
     if mad_str:
         try:
-            mad_label = format_day_label(datetime.strptime(mad_str, "%Y-%m-%d"))
+            mad_label = format_day_label(datetime.strptime(mad_str, "%Y-%m-%d"), lang=lang)
         except ValueError:
             mad_label = mad_str
     else:
@@ -89,32 +91,32 @@ def render_stats_html(stats: dict, color_map: dict[str, str]) -> str:
     total_media = sum(stats["media_counts"].values())
 
     gen_rows = (
-        f'<div class="grow"><span>Total messages</span><strong>{real_total:,}</strong></div>'
-        f'<div class="grow"><span>Durée</span><strong>{total_days} jours</strong></div>'
-        f'<div class="grow"><span>Moy. / jour</span><strong>{avg_day:.0f} msgs</strong></div>'
-        f'<div class="grow"><span>Médias échangés</span><strong>{total_media:,}</strong></div>'
-        f'<div class="grow"><span>Jour le + actif</span><strong>{html.escape(mad_label)}</strong></div>'
-        f'<div class="grow"><span>Record du jour</span><strong>{mad_cnt:,} msgs</strong></div>'
+        f'<div class="grow"><span>{t["stat_total_msgs"]}</span><strong>{real_total:,}</strong></div>'
+        f'<div class="grow"><span>{t["stat_duration"]}</span><strong>{total_days} {t["stat_days"]}</strong></div>'
+        f'<div class="grow"><span>{t["stat_avg_day"]}</span><strong>{avg_day:.0f} {t["stat_msgs_short"]}</strong></div>'
+        f'<div class="grow"><span>{t["stat_media_count"]}</span><strong>{total_media:,}</strong></div>'
+        f'<div class="grow"><span>{t["stat_most_active"]}</span><strong>{html.escape(mad_label)}</strong></div>'
+        f'<div class="grow"><span>{t["stat_day_record"]}</span><strong>{mad_cnt:,} {t["stat_msgs_short"]}</strong></div>'
     )
 
     return f"""
 <details class="stats-section">
-  <summary>📊 Statistiques de la conversation</summary>
+  <summary>{t["stats_title"]}</summary>
   <div class="stats-grid">
     <div class="stats-box">
-      <h3>💬 Messages par personne</h3>
+      <h3>{t["stats_messages"]}</h3>
       <div class="sender-bars">{sender_bars}</div>
     </div>
     <div class="stats-box">
-      <h3>⏰ Activité par heure</h3>
+      <h3>{t["stats_hourly"]}</h3>
       <div class="hour-chart">{hour_bars}</div>
     </div>
     <div class="stats-box">
-      <h3>📎 Médias échangés</h3>
+      <h3>{t["stats_media"]}</h3>
       <div class="media-rows">{media_rows}</div>
     </div>
     <div class="stats-box">
-      <h3>📅 Infos générales</h3>
+      <h3>{t["stats_general"]}</h3>
       <div class="gen-rows">{gen_rows}</div>
     </div>
   </div>

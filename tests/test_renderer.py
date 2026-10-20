@@ -128,22 +128,30 @@ class TestRenderer(unittest.TestCase):
         self.assertEqual(html_out.count('data-sender="Alice"'), 2)
 
     def test_build_html_empty_messages(self):
-        page = build_html([], "media")
-        self.assertIn("Aucun message", page)
+        page_en = build_html([], "media")
+        self.assertIn("No messages", page_en)
+        page_fr = build_html([], "media", lang="fr")
+        self.assertIn("Aucun message", page_fr)
 
     def test_build_html_group_vs_duo(self):
-        # 2 participants -> Conversation WhatsApp
+        # 2 participants -> English default & French
         duo = [
             {"date": "15/10/24 10:00:00", "sender": "Alice", "content": "Hi", "dt": datetime(2024, 10, 15, 10, 0, 0)},
             {"date": "15/10/24 10:01:00", "sender": "Bob", "content": "Hello", "dt": datetime(2024, 10, 15, 10, 1, 0)},
         ]
-        html_duo = build_html(duo, "media")
-        self.assertIn("Conversation WhatsApp - Alice &amp; Bob", html_duo)
+        html_duo_en = build_html(duo, "media")
+        self.assertIn("WhatsApp Conversation - Alice &amp; Bob", html_duo_en)
 
-        # 3 participants -> Conversation de groupe WhatsApp
+        html_duo_fr = build_html(duo, "media", lang="fr")
+        self.assertIn("Conversation WhatsApp - Alice &amp; Bob", html_duo_fr)
+
+        # 3 participants -> WhatsApp Group Conversation
         group = duo + [{"date": "15/10/24 10:02:00", "sender": "Charlie", "content": "Yo", "dt": datetime(2024, 10, 15, 10, 2, 0)}]
-        html_group = build_html(group, "media")
-        self.assertIn("Conversation de groupe WhatsApp - Alice &amp; Bob &amp; Charlie", html_group)
+        html_group_en = build_html(group, "media")
+        self.assertIn("WhatsApp Group Conversation - Alice &amp; Bob &amp; Charlie", html_group_en)
+
+        html_group_fr = build_html(group, "media", lang="fr")
+        self.assertIn("Conversation de groupe WhatsApp - Alice &amp; Bob &amp; Charlie", html_group_fr)
 
     def test_build_html_all_placeholders_replaced(self):
         messages = [

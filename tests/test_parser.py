@@ -39,8 +39,12 @@ class TestParser(unittest.TestCase):
 
     def test_format_day_label(self):
         dt = datetime(2024, 3, 4)  # 2024-03-04 is Monday
-        label = format_day_label(dt)
-        self.assertEqual(label, "Lundi 4 mars 2024")
+        # Default is English
+        label_en = format_day_label(dt)
+        self.assertEqual(label_en, "Monday 4 March 2024")
+        # Multilingual: French
+        label_fr = format_day_label(dt, lang="fr")
+        self.assertEqual(label_fr, "Lundi 4 mars 2024")
 
     def test_get_attachment_filename(self):
         self.assertEqual(
@@ -66,11 +70,15 @@ class TestParser(unittest.TestCase):
         self.assertEqual(get_system_icon("Autre événement inconnu"), "ℹ️")
 
     def test_get_media_type_label(self):
+        # Default English
         self.assertEqual(get_media_type_label("IMG-PHOTO-123.jpg"), "📷 Photo")
         self.assertEqual(get_media_type_label("AUD-AUDIO-123.opus"), "🎤 Audio")
-        self.assertEqual(get_media_type_label("VID-VIDEO-123.mp4"), "🎬 Vidéo")
+        self.assertEqual(get_media_type_label("VID-VIDEO-123.mp4"), "🎬 Video")
         self.assertEqual(get_media_type_label("STK-STICKER-123.webp"), "🎭 Sticker")
-        self.assertEqual(get_media_type_label("document.pdf"), "📎 Autre")
+        self.assertEqual(get_media_type_label("document.pdf"), "📎 Other")
+        # French
+        self.assertEqual(get_media_type_label("VID-VIDEO-123.mp4", lang="fr"), "🎬 Vidéo")
+        self.assertEqual(get_media_type_label("document.pdf", lang="fr"), "📎 Autre")
 
     def test_format_message_markdown(self):
         html_bold = format_message("*texte gras*")
@@ -186,19 +194,24 @@ class TestParser(unittest.TestCase):
             self.assertTrue(is_system_message(m), f"Failed for system message: {m}")
 
     def test_get_media_type_label_comprehensive(self):
-        # Prefix formats
+        # Default English
         self.assertEqual(get_media_type_label("001-PHOTO-2024.jpg"), "📷 Photo")
         self.assertEqual(get_media_type_label("002-AUDIO-2024.opus"), "🎤 Audio")
-        self.assertEqual(get_media_type_label("003-VIDEO-2024.mp4"), "🎬 Vidéo")
+        self.assertEqual(get_media_type_label("003-VIDEO-2024.mp4"), "🎬 Video")
         self.assertEqual(get_media_type_label("004-STICKER-2024.webp"), "🎭 Sticker")
         self.assertEqual(get_media_type_label("005-GIF-2024.mp4"), "🎞️ GIF")
         self.assertEqual(get_media_type_label("006-DOCUMENT-2024.pdf"), "📄 Document")
 
-        # Extension fallbacks
+        # Extension fallbacks (English)
         self.assertEqual(get_media_type_label("photo.png"), "📷 Photo")
         self.assertEqual(get_media_type_label("voice.m4a"), "🎤 Audio")
-        self.assertEqual(get_media_type_label("clip.mov"), "🎬 Vidéo")
-        self.assertEqual(get_media_type_label("random.zip"), "📎 Autre")
+        self.assertEqual(get_media_type_label("clip.mov"), "🎬 Video")
+        self.assertEqual(get_media_type_label("random.zip"), "📎 Other")
+
+        # Multilingual (French)
+        self.assertEqual(get_media_type_label("003-VIDEO-2024.mp4", lang="fr"), "🎬 Vidéo")
+        self.assertEqual(get_media_type_label("clip.mov", lang="fr"), "🎬 Vidéo")
+        self.assertEqual(get_media_type_label("random.zip", lang="fr"), "📎 Autre")
 
     def test_format_message_links_with_markdown_inside(self):
         msg = "Lien avec underscores : https://example.com/path_with_underscores*and*stars reste intact."

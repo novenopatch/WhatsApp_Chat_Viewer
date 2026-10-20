@@ -132,6 +132,9 @@ _CATALOGUE: dict[str, dict[str, str]] = {
     "gallery_tab_photos":    {"en": "Photos & Videos",                      "fr": "Photos & Vidéos"},
     "gallery_tab_audios":    {"en": "Voice notes",                          "fr": "Notes vocales"},
     "gallery_tab_docs":      {"en": "Docs & Links",                         "fr": "Docs & Liens"},
+    "gallery_empty_photos":  {"en": "No photos or videos",                  "fr": "Aucune photo ou vidéo"},
+    "gallery_empty_audios":  {"en": "No voice notes",                       "fr": "Aucune note vocale"},
+    "gallery_empty_docs":    {"en": "No documents or links",                "fr": "Aucun document ou lien"},
     "lb_close_title":        {"en": "Close (Esc)",                          "fr": "Fermer (Échap)"},
     "lb_prev_title":         {"en": "Previous (←)",                         "fr": "Précédent (←)"},
     "lb_next_title":         {"en": "Next (→)",                             "fr": "Suivant (→)"},
@@ -168,6 +171,74 @@ DEFAULT_LANGUAGE = "en"
 
 
 # ---------------------------------------------------------------------------
+# Language detection & resolution
+# ---------------------------------------------------------------------------
+
+def detect_system_language() -> str:
+    """Detect the system/user interface language from environment or locale.
+
+    Checks (in priority order):
+    1. Environment variables: LC_ALL, LC_MESSAGES, LANG, LANGUAGE
+    2. Python locale: locale.getlocale()
+    3. Fallback to DEFAULT_LANGUAGE ('en')
+
+    Returns:
+        A supported language code: 'fr' or 'en'.
+    """
+    import locale
+    import os
+
+    for env_var in ("LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"):
+        val = os.environ.get(env_var, "").strip()
+        if val:
+            token = val.split(":")[0].split(";")[0].split(".")[0].replace("-", "_")
+            primary = token.split("_")[0].lower()
+            if primary in SUPPORTED_LANGUAGES:
+                return primary
+            if primary.startswith("fr") or primary in ("french", "francais"):
+                return "fr"
+            if primary.startswith("en") or primary in ("english",):
+                return "en"
+
+    try:
+        loc = locale.getlocale()[0]
+        if loc:
+            token = loc.split(".")[0].replace("-", "_")
+            primary = token.split("_")[0].lower()
+            if primary in SUPPORTED_LANGUAGES:
+                return primary
+            if primary.startswith("fr") or primary in ("french", "francais"):
+                return "fr"
+            if primary.startswith("en") or primary in ("english",):
+                return "en"
+    except Exception:
+        pass
+
+    return DEFAULT_LANGUAGE
+
+
+def resolve_language(lang: str | None = None) -> str:
+    """Resolve the effective language to use.
+
+    If *lang* is None, empty, or 'auto', automatically detects the system language.
+    Otherwise normalises and returns the requested language if supported,
+    falling back to DEFAULT_LANGUAGE ('en').
+    """
+    if not lang or lang.strip().lower() == "auto":
+        return detect_system_language()
+
+    clean = lang.strip().lower().split("-")[0].split("_")[0]
+    if clean in SUPPORTED_LANGUAGES:
+        return clean
+    if clean.startswith("fr") or clean in ("french", "francais"):
+        return "fr"
+    if clean.startswith("en") or clean in ("english",):
+        return "en"
+
+    return DEFAULT_LANGUAGE
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -177,14 +248,12 @@ def get_translations(lang: str = DEFAULT_LANGUAGE) -> dict[str, str]:
     Falls back to English for any key not defined in *lang*.
 
     Args:
-        lang: BCP-47 language tag (e.g. ``"en"``, ``"fr"``).
+        lang: BCP-47 language tag (e.g. ``"en"``, ``"fr"``, or ``"auto"``).
 
     Returns:
         Dict mapping translation key → localised string.
     """
-    lang = lang.lower().split("-")[0]  # normalise "fr-FR" → "fr"
-    if lang not in SUPPORTED_LANGUAGES:
-        lang = DEFAULT_LANGUAGE
+    lang = resolve_language(lang)
 
     result: dict[str, str] = {}
     for key, variants in _CATALOGUE.items():

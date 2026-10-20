@@ -49,13 +49,20 @@ class TestStats(unittest.TestCase):
         self.assertIn("🎤 Audio", stats["media_counts"])
 
     def test_render_stats_html(self):
+        # Default English
         stats = compute_stats(self.messages)
         html_out = render_stats_html(stats, self.color_map)
         self.assertIn("<details class=\"stats-section\">", html_out)
         self.assertIn("Alice", html_out)
         self.assertIn("Bob", html_out)
-        self.assertIn("Activité par heure", html_out)
-        self.assertIn("Médias échangés", html_out)
+        self.assertIn("Activity by hour", html_out)
+        self.assertIn("Media shared", html_out)
+
+        # French
+        stats_fr = compute_stats(self.messages, lang="fr")
+        html_out_fr = render_stats_html(stats_fr, self.color_map, lang="fr")
+        self.assertIn("Activité par heure", html_out_fr)
+        self.assertIn("Médias échangés", html_out_fr)
 
     def test_compute_stats_empty(self):
         stats = compute_stats([])
@@ -65,10 +72,14 @@ class TestStats(unittest.TestCase):
         self.assertEqual(stats["most_active"], ("", 0))
 
         # Ensure render_stats_html does not crash with ZeroDivisionError on empty stats
-        html_out = render_stats_html(stats, {})
-        self.assertIn("Statistiques de la conversation", html_out)
-        self.assertIn("Aucun média", html_out)
-        self.assertIn("N/A", html_out)
+        html_out_en = render_stats_html(stats, {})
+        self.assertIn("Conversation Statistics", html_out_en)
+        self.assertIn("No media", html_out_en)
+        self.assertIn("N/A", html_out_en)
+
+        html_out_fr = render_stats_html(stats, {}, lang="fr")
+        self.assertIn("Statistiques de la conversation", html_out_fr)
+        self.assertIn("Aucun média", html_out_fr)
 
     def test_compute_stats_all_system_messages(self):
         messages = [
@@ -91,7 +102,10 @@ class TestStats(unittest.TestCase):
         self.assertEqual(stats["total"], 2)
         self.assertEqual(stats["real_total"], 2)
         self.assertEqual(len(stats["hour_counts"]), 0)
-        self.assertEqual(stats["media_counts"]["🎬 Vidéo"], 1)
+        self.assertEqual(stats["media_counts"]["🎬 Video"], 1)
+
+        stats_fr = compute_stats(messages, lang="fr")
+        self.assertEqual(stats_fr["media_counts"]["🎬 Vidéo"], 1)
 
     def test_render_stats_html_unknown_sender_color(self):
         messages = [{"date": "01/01/24 10:00:00", "sender": "Inconnu", "content": "Test", "dt": None}]

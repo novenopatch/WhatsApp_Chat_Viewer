@@ -6,6 +6,14 @@
   'use strict';
 
   // -------------------------------------------------------------------------
+  // i18n — load translations injected by the Python renderer
+  // -------------------------------------------------------------------------
+  const _i18nEl = document.getElementById('i18n-data');
+  const I18N = _i18nEl ? JSON.parse(_i18nEl.textContent || '{}') : {};
+  /** Translate a key, falling back to the key itself if missing. */
+  function t(key) { return I18N[key] || key; }
+
+  // -------------------------------------------------------------------------
   // Utility: Debounce for smooth typing without lag
   // -------------------------------------------------------------------------
   function debounce(fn, delay) {
@@ -264,7 +272,7 @@
     if (searchMatches.length > 0) {
       goToMatch(0);
     } else {
-      if (searchCount) searchCount.textContent = 'Aucun résultat';
+      if (searchCount) searchCount.textContent = t('js_no_results');
     }
   }
 
@@ -334,7 +342,7 @@
     if (searchMatches.length > 0) {
       goToMatch(0);
     } else {
-      if (searchCount) searchCount.textContent = 'Aucun résultat';
+      if (searchCount) searchCount.textContent = t('js_no_results');
     }
   }
 
@@ -823,7 +831,7 @@
         : '<svg class="lucide lucide-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
     }
     if (themeToggleBtn) {
-      themeToggleBtn.title = isDark ? 'Passer au mode clair' : 'Passer au mode sombre';
+      themeToggleBtn.title = isDark ? t('js_to_light') : t('js_to_dark');
     }
   }
 
@@ -1005,7 +1013,7 @@
         const d = new Date(dateVal + 'T12:00:00');
         const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
         if (!monthMap.has(key)) {
-          const label = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+          const label = d.toLocaleDateString(t('js_locale'), { month: 'long', year: 'numeric' });
           monthMap.set(key, label.charAt(0).toUpperCase() + label.slice(1));
         }
       }
@@ -1118,7 +1126,7 @@
 
       if (filterSummary) {
         if (activeSender || activeMonth || mediaOnly || activeMediaType || dateStart || dateEnd) {
-          filterSummary.textContent = visibleCount + ' / ' + rows.length + ' messages';
+          filterSummary.textContent = visibleCount + ' / ' + rows.length + ' ' + t('js_filter_summary');
         } else {
           filterSummary.textContent = '';
         }
@@ -1181,11 +1189,11 @@
     monthGroupMap.forEach((dg, key) => {
       const [year, month] = key.split('-');
       const d = new Date(parseInt(year), parseInt(month) - 1, 1);
-      const shortMonth = d.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '');
+      const shortMonth = d.toLocaleDateString(t('js_locale'), { month: 'short' }).replace('.', '');
       const shortYear  = String(d.getFullYear()).slice(2);
       const item = document.createElement('div');
       item.className = 'scrubber-item';
-      item.title = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      item.title = d.toLocaleDateString(t('js_locale'), { month: 'long', year: 'numeric' });
       item.innerHTML = '<span class="scrubber-month">' + shortMonth + '</span><span class="scrubber-year">' + shortYear + '</span>';
       item.addEventListener('click', () => {
         dg.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1512,7 +1520,7 @@
       const photoPanel = document.getElementById('gp-photos');
       if (!photoPanel) return;
       if (photos.length === 0) {
-        photoPanel.innerHTML = '<div class="g-empty"><svg class="lucide lucide-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Aucune photo ou vidéo</div>';
+        photoPanel.innerHTML = '<div class="g-empty"><svg class="lucide lucide-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> ' + t('gallery_empty_photos') + '</div>';
         return;
       }
       let grid = photoPanel.querySelector('.g-photo-grid');
@@ -1532,7 +1540,7 @@
             '<video src="' + p.src + '" style="width:100%;height:100%;object-fit:cover" preload="none"></video>' +
             '<div class="g-video-badge">▶️</div>' +
             '<div class="g-thumb-meta">' + p.sender + ' · ' + p.time + '</div>' +
-            '<button class="g-jump-btn" title="Aller au message">➔</button>';
+            '<button class="g-jump-btn" title="' + t('js_jump_to_msg') + '">➔</button>';
           wrap.addEventListener('click', function(e) {
             if (e.target.classList.contains('g-jump-btn')) {
               e.stopPropagation();
@@ -1552,7 +1560,7 @@
           meta.textContent = p.sender + ' · ' + p.time;
           const jumpBtn = document.createElement('button');
           jumpBtn.className = 'g-jump-btn';
-          jumpBtn.title = 'Aller au message';
+          jumpBtn.title = t('js_jump_to_msg');
           jumpBtn.textContent = '➔';
           jumpBtn.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -1574,7 +1582,7 @@
       const audioPanel = document.getElementById('gp-audios');
       if (!audioPanel) return;
       if (audios.length === 0) {
-        audioPanel.innerHTML = '<div class="g-empty"><svg class="lucide lucide-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg> Aucune note vocale</div>';
+        audioPanel.innerHTML = '<div class="g-empty"><svg class="lucide lucide-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg> ' + t('gallery_empty_audios') + '</div>';
         return;
       }
       let list = audioPanel.querySelector('.g-audio-list');
@@ -1598,7 +1606,7 @@
         metaEl.textContent = a.sender + ' · ' + a.time;
         const jumpBtn = document.createElement('button');
         jumpBtn.className = 'g-jump-link';
-        jumpBtn.textContent = 'Aller au message ➔';
+        jumpBtn.textContent = t('js_jump_to_msg_arrow');
         jumpBtn.addEventListener('click', function() { window.jumpToMessage(a.msgId); });
         item.appendChild(audio);
         item.appendChild(metaEl);
@@ -1612,7 +1620,7 @@
       const docPanel = document.getElementById('gp-docs');
       if (!docPanel) return;
       if (allDocs.length === 0) {
-        docPanel.innerHTML = '<div class="g-empty"><svg class="lucide lucide-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg> Aucun document ou lien</div>';
+        docPanel.innerHTML = '<div class="g-empty"><svg class="lucide lucide-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg> ' + t('gallery_empty_docs') + '</div>';
         return;
       }
       let list = docPanel.querySelector('.g-doc-list');
@@ -1657,7 +1665,7 @@
 
         const jumpBtn = document.createElement('button');
         jumpBtn.className = 'g-jump-link';
-        jumpBtn.textContent = 'Aller au message ➔';
+        jumpBtn.textContent = t('js_jump_to_msg_arrow');
         jumpBtn.addEventListener('click', function(e) {
           e.preventDefault();
           window.jumpToMessage(item.msgId);

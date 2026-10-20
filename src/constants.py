@@ -23,13 +23,20 @@ AVATAR_COLORS = [
     "#E84393", "#FF6B6B", "#FFB347", "#A29BFE",
 ]
 
+# ---------------------------------------------------------------------------
+# Legacy month list kept for backward-compatibility; prefer i18n.get_month_names()
+# ---------------------------------------------------------------------------
 FRENCH_MONTHS = [
     "", "janvier", "février", "mars", "avril", "mai", "juin",
     "juillet", "août", "septembre", "octobre", "novembre", "décembre",
 ]
 
+# System message detection — both French and English WhatsApp export formats.
+# French: "Appel vocal/vidéo/de groupe", "chiffrés de bout en bout", "audio omis", …
+# English: "Voice call", "end-to-end encrypted", "audio omitted", …
 SYSTEM_MESSAGE_PATTERN = re.compile(
     r"(?:"
+    # French
     r"Appel (?:vocal|vidéo|de groupe)"
     r"|chiffr[ée]s? de bout en bout"
     r"|audio omis"
@@ -38,12 +45,26 @@ SYSTEM_MESSAGE_PATTERN = re.compile(
     r"|en silencieux"
     r"|Répondu sur un autre appareil"
     r"|Appuyez pour rappeler"
+    # English
+    r"|(?:Voice|Video|Group) call"
+    r"|end-to-end encrypted"
+    r"|audio omitted"
+    r"|You deleted this message"
+    r"|This message was deleted"
+    r"|muted"
+    r"|Replied on another device"
+    r"|Tap to call back"
     r")",
     re.IGNORECASE,
 )
 
-EDIT_ANNOTATION_PATTERN = re.compile(r"\s*\u200e?<Ce message a été modifié>\s*$")
-DELETE_ANNOTATION_PATTERN = re.compile(r"\s*\u200e?<Ce message a été supprimé>\s*$")
+# Edit / delete annotations — French and English WhatsApp export formats.
+EDIT_ANNOTATION_PATTERN = re.compile(
+    r"\s*\u200e?<(?:Ce message a été modifié|This message was edited)>\s*$"
+)
+DELETE_ANNOTATION_PATTERN = re.compile(
+    r"\s*\u200e?<(?:Ce message a été supprimé|This message was deleted)>\s*$"
+)
 URL_PATTERN = re.compile(r"(https?://[^\s<>\"']+)")
 
 # WhatsApp markdown (applied on HTML-escaped text; *, _, ~, ` are not HTML-special)
@@ -53,16 +74,31 @@ WA_BOLD = re.compile(r"(?<!\*)\*(?!\s)(.+?)(?<!\s)\*(?!\*)")
 WA_ITALIC = re.compile(r"(?<!_)_(?!\s)(.+?)(?<!\s)_(?!_)")
 WA_STRIKE = re.compile(r"(?<!~)~(?!\s)(.+?)(?<!\s)~(?!~)")
 
+# ---------------------------------------------------------------------------
+# System icon keyword → emoji map.
+# Keys are French WhatsApp export keywords (lower-case fragments).
+# For runtime use, prefer i18n.get_system_icons(lang) which returns the
+# language-appropriate keywords.
+# ---------------------------------------------------------------------------
 SYSTEM_ICONS = {
     "appel vocal": "📞", "appel vidéo": "📹", "appel de groupe": "👥",
     "chiffr": "🔒", "audio omis": "🎤", "supprimé": "🗑️",
     "silencieux": "🔕", "rappeler": "📵", "répondu": "📱",
+    # English equivalents
+    "voice call": "📞", "video call": "📹", "group call": "👥",
+    "encrypt": "🔒", "audio omit": "🎤", "deleted": "🗑️",
+    "muted": "🔕", "call back": "📵", "replied": "📱",
 }
 
+# ---------------------------------------------------------------------------
+# Media type label map.
+# Keys come from WhatsApp filenames (upper-case segment); values are default
+# English labels. For localised labels use i18n.get_media_type_map(lang).
+# ---------------------------------------------------------------------------
 MEDIA_TYPE_MAP = {
     "AUDIO": "🎤 Audio",
     "PHOTO": "📷 Photo",
-    "VIDEO": "🎬 Vidéo",
+    "VIDEO": "🎬 Video",
     "STICKER": "🎭 Sticker",
     "GIF": "🎞️ GIF",
     "DOCUMENT": "📄 Document",

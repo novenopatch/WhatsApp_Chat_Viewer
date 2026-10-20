@@ -78,18 +78,42 @@ from src.zip_handler import (
 
 def main() -> None:
     """Main CLI execution flow."""
+    from src.monitor import PerformanceTracker
+
     cli_args = parse_args()
+    verbose = getattr(cli_args, "verbose", False)
+    ultra_perf = getattr(cli_args, "ultra_perf", False)
+
     print(f"WhatsApp Chat Viewer v{__version__}")
+    if ultra_perf:
+        print("  ⚡ Mode Ultra-Performance activé")
+    if verbose:
+        print("  🔍 Mode Verbeux activé")
+
     if getattr(cli_args, "serve", False):
         from src.server import run_server
-        run_server(host=cli_args.host, port=cli_args.port)
+        run_server(
+            host=cli_args.host,
+            port=cli_args.port,
+            verbose=verbose,
+            ultra_perf=ultra_perf,
+        )
         return
 
+    tracker = PerformanceTracker("Build CLI")
+
     chat_file, media_dir, output_file, me_user = load_config()
+
+    dotenv_path = os.path.join(os.getcwd(), ".env")
+    env = _parse_dotenv(dotenv_path) if os.path.isfile(dotenv_path) else {}
+    raw_lang = getattr(cli_args, "lang", None) or env.get("LANG") or env.get("LANGUAGE") or "auto"
+    from src.i18n import resolve_language
+    lang = resolve_language(raw_lang)
 
     print(f"\n  chat    → {chat_file}")
     print(f"  médias  → {media_dir}")
     print(f"  sortie  → {output_file}")
+    print(f"  langue  → {lang}")
     if me_user:
         print(f"  moi     → {me_user}")
     print()
@@ -102,6 +126,10 @@ def main() -> None:
     if not messages:
         print("! Attention : Aucun message trouvé. Vérifiez le fichier de chat.")
         sys.exit(1)
+
+    step_parse = tracker.mark_step("parsing")
+    if verbose:
+        print(f"  • Parsing : {len(messages):,} messages en {step_parse['elapsed_s']:.2f}s | RAM: {step_parse['ram_rss_mb']:.1f} Mo | CPU user: {step_parse['cpu_user_s']:.2f}s")
 
     attendees = list(dict.fromkeys(msg["sender"] for msg in messages))
     if not me_user:
@@ -121,7 +149,10 @@ def main() -> None:
     if getattr(cli_args, "thumbs", False) or os.environ.get("GENERATE_THUMBS"):
         print("• Génération des miniatures d'images...")
         num_thumbs = generate_thumbnails(media_dir)
+        step_thumbs = tracker.mark_step("thumbnails")
         print(f"  Miniatures générées : {num_thumbs}")
+        if verbose:
+            print(f"  • Miniatures : {step_thumbs['elapsed_s']:.2f}s | RAM: {step_thumbs['ram_rss_mb']:.1f} Mo")
 
     standalone = getattr(cli_args, "standalone", False)
     max_embed_bytes = getattr(cli_args, "max_embed_size", 20) * 1024 * 1024
@@ -135,9 +166,14 @@ def main() -> None:
         me_user=me_user,
         standalone=standalone,
         max_embed_size=max_embed_bytes,
+        lang=lang,
     )
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(html_output)
+
+    step_render = tracker.mark_step("rendering")
+    if verbose:
+        print(f"  • Rendu HTML : {step_render['elapsed_s']:.2f}s | RAM: {step_render['ram_rss_mb']:.1f} Mo | CPU user: {step_render['cpu_user_s']:.2f}s")
 
     gz_output = output_file + ".gz"
     with gzip.open(gz_output, "wt", encoding="utf-8", compresslevel=9) as f:
@@ -161,6 +197,12 @@ def main() -> None:
         print(f"  └─ Brotli       : {br_output}  ({br_kb:.1f} Ko, -{br_ratio:.1f}%)")
     except ImportError:
         pass  # brotli non installé — compression Gzip suffisante
+
+    final = tracker.finish()
+    print(f"\n📊 Métriques de performance :")
+    print(f"   Durée totale : {final['elapsed_s']:.2f}s")
+    print(f"   RAM RSS      : {final['ram_rss_mb']:.1f} Mo (pic: {final['peak_ram_mb']:.1f} Mo)")
+    print(f"   CPU user     : {final['cpu_user_s']:.2f}s (sys: {final['cpu_sys_s']:.2f}s, {final['cpu_percent']:.1f}%)")
 
 
 if __name__ == "__main__":

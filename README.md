@@ -102,9 +102,13 @@ pip install -r requirements.txt
 Pour visualiser et convertir une archive sans aucune ligne de commande complexe :
 ```bash
 python3 build.py --serve
+
+# Avec mode verbeux (RAM RSS, CPU user, décompression) et mode Ultra-Performance :
+python3 build.py --serve -v --ultra-perf
 ```
 * Ouvre automatiquement votre navigateur sur `http://127.0.0.1:8080`.
 * Glissez-déposez simplement votre archive `.zip` WhatsApp.
+* Suivi en temps réel de la **décompression** et des ressources (barre de progression, RAM RSS, CPU utilisateur).
 * Visualisez le chat instantanément ou téléchargez le fichier HTML généré !
 
 ---
@@ -142,7 +146,10 @@ Options disponibles (`python3 build.py --help`) :
 - `-m, --media DIR` : dossier contenant les médias
 - `-o, --output FILE` : chemin du fichier HTML produit (défaut : `output.html`)
 - `--me, --your-name NAME` : votre nom ou pseudo dans la conversation (place vos messages à droite sur fond vert)
+- `-l, --lang {auto,en,fr}` : langue de l'interface (`auto` par défaut selon la langue du système, ou forcé à `en` / `fr`)
 - `--thumbs` : génère des miniatures optimisées pour accélérer le chargement initial
+- `-v, --verbose` : mode verbeux affichant le suivi détaillé de l'extraction, la RAM (RSS) et le temps CPU utilisateur
+- `--ultra-perf, --fast` : mode ultra-performance (décompression turbo en chunks 1 Mo, parsing accéléré, encodage Base64 mis en cache)
 
 ---
 
@@ -165,6 +172,7 @@ Copiez [`.env.example`](.env.example) vers `.env` et adaptez les chemins :
 CHAT_DIR=/chemin/vers/WhatsApp_Export/
 OUTPUT_FILE=output.html
 ME="Mon Nom"
+LANG=auto   # 'auto' (défaut système), 'en' ou 'fr'
 ```
 
 Puis lancez simplement :

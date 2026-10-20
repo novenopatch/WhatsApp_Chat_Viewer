@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,27 +14,27 @@
   <div class="top-bar">
     <h1><svg class="lucide lucide-message-square" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> {{ chat_label }}</h1>
     <div class="search-wrapper">
-      <input id="search-input" type="text" placeholder="Rechercher…" autocomplete="off">
+      <input id="search-input" type="text" placeholder="{{ t.search_placeholder }}" autocomplete="off">
       <span class="search-icon"><svg class="lucide lucide-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
       <div class="search-nav">
-        <button id="search-prev" disabled title="Résultat précédent (Shift+Entrée)">&#8679;</button>
-        <button id="search-next" disabled title="Résultat suivant (Entrée)">&#8681;</button>
+        <button id="search-prev" disabled title="{{ t.search_prev_title }}">&#8679;</button>
+        <button id="search-next" disabled title="{{ t.search_next_title }}">&#8681;</button>
       </div>
     </div>
     <span id="search-count"></span>
     <!-- Gallery button -->
-    <button id="gallery-btn" class="gallery-toggle-btn" title="Galerie de médias" aria-label="Galerie">
+    <button id="gallery-btn" class="gallery-toggle-btn" title="{{ t.gallery_btn_title }}" aria-label="{{ t.gallery_btn_aria }}">
       <svg class="lucide lucide-images" viewBox="0 0 24 24"><path d="M18 22H4a2 2 0 0 1-2-2V6"/><rect width="18" height="18" x="6" y="2" rx="2"/><circle cx="12" cy="8" r="2"/><path d="m24 16-4-4-5 5-2-2-7 7"/></svg><span id="gallery-count-badge" class="gallery-badge">{{ media_count }}</span>
     </button>
     <!-- Wallpaper toggle -->
-    <button id="wallpaper-toggle" class="theme-toggle-btn" title="Activer/désactiver le fond d'écran WhatsApp" aria-label="Fond d'écran">
+    <button id="wallpaper-toggle" class="theme-toggle-btn" title="{{ t.wallpaper_btn_title }}" aria-label="{{ t.wallpaper_btn_aria }}">
       <span id="wallpaper-icon"><svg class="lucide lucide-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span>
     </button>
     <!-- Print / Export to PDF button -->
-    <button id="print-btn" class="theme-toggle-btn" title="Imprimer ou enregistrer en PDF (Ctrl+P)" aria-label="Imprimer / Exporter PDF" onclick="window.print()">
+    <button id="print-btn" class="theme-toggle-btn" title="{{ t.print_btn_title }}" aria-label="{{ t.print_btn_aria }}" onclick="window.print()">
       <svg class="lucide lucide-printer" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
     </button>
-    <button id="theme-toggle" class="theme-toggle-btn" title="Basculer le thème Sombre / Clair" aria-label="Basculer le thème">
+    <button id="theme-toggle" class="theme-toggle-btn" title="{{ t.theme_btn_title }}" aria-label="{{ t.theme_btn_aria }}">
       <span id="theme-icon"><svg class="lucide lucide-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
     </button>
   </div>
@@ -42,15 +42,15 @@
   <!-- Print-only document header for clean PDF book layout -->
   <div class="print-header">
     <div class="print-title">{{ chat_label }}</div>
-    <div class="print-meta">{{ attendees_header }} &bull; Du {{ start_date }} au {{ end_date }}</div>
+    <div class="print-meta">{{ attendees_header }} &bull; {{ t.date_from }} {{ start_date }} {{ t.date_to }} {{ end_date }}</div>
   </div>
 
   <!-- Conversation header -->
   <div class="conversation-header">
     <h2>{{ attendees_header }}</h2>
-    <p>Du {{ start_date }} au {{ end_date }}</p>
+    <p>{{ t.date_from }} {{ start_date }} {{ t.date_to }} {{ end_date }}</p>
     <div class="me-selector-wrapper">
-      <label for="me-select"><svg class="lucide lucide-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Bulle "Moi" (droite) :</label>
+      <label for="me-select"><svg class="lucide lucide-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> {{ t.me_selector_label }}</label>
       <select id="me-select" onchange="setMeUser(this.value)">
         {{ me_options_html }}
       </select>
@@ -61,32 +61,32 @@
   <!-- Filter Toolbar -->
   <div id="filter-bar">
     <div id="filter-inner">
-      <select id="filter-sender" title="Filtrer par participant">
-        <option value="">Tous les participants</option>
+      <select id="filter-sender" title="{{ t.filter_all_participants }}">
+        <option value="">{{ t.filter_all_participants }}</option>
       </select>
-      <select id="filter-month" title="Aller à un mois/année">
-        <option value="">Tous les mois</option>
+      <select id="filter-month" title="{{ t.filter_all_months }}">
+        <option value="">{{ t.filter_all_months }}</option>
       </select>
       <div class="filter-media-chips">
-        <button id="filter-media-only" class="filter-chip" title="Afficher uniquement les messages avec médias"><svg class="lucide lucide-paperclip" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l7.9-7.9"/></svg> Médias</button>
-        <button class="filter-chip filter-media-type" data-type="photo" title="Photos et Stickers"><svg class="lucide lucide-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Photos</button>
-        <button class="filter-chip filter-media-type" data-type="video" title="Vidéos"><svg class="lucide lucide-video" viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg> Vidéos</button>
-        <button class="filter-chip filter-media-type" data-type="audio" title="Notes vocales"><svg class="lucide lucide-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg> Audios</button>
-        <button class="filter-chip filter-media-type" data-type="doc" title="Documents PDF et fichiers"><svg class="lucide lucide-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg> Docs</button>
-        <button class="filter-chip filter-media-type" data-type="link" title="Liens partagés"><svg class="lucide lucide-link-2" viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg> Liens</button>
+        <button id="filter-media-only" class="filter-chip" title="{{ t.filter_media_title }}"><svg class="lucide lucide-paperclip" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l7.9-7.9"/></svg> {{ t.filter_media_btn }}</button>
+        <button class="filter-chip filter-media-type" data-type="photo" title="{{ t.filter_photos_title }}"><svg class="lucide lucide-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> {{ t.filter_photos_btn }}</button>
+        <button class="filter-chip filter-media-type" data-type="video" title="{{ t.filter_videos_btn }}"><svg class="lucide lucide-video" viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg> {{ t.filter_videos_btn }}</button>
+        <button class="filter-chip filter-media-type" data-type="audio" title="{{ t.filter_audios_title }}"><svg class="lucide lucide-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg> {{ t.filter_audios_btn }}</button>
+        <button class="filter-chip filter-media-type" data-type="doc" title="{{ t.filter_docs_title }}"><svg class="lucide lucide-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg> {{ t.filter_docs_btn }}</button>
+        <button class="filter-chip filter-media-type" data-type="link" title="{{ t.filter_links_title }}"><svg class="lucide lucide-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> {{ t.filter_links_btn }}</button>
       </div>
       <div class="filter-date-range">
-        <span class="filter-date-label">Du</span>
-        <input type="date" id="filter-date-start" title="Date de début">
-        <span class="filter-date-label">au</span>
-        <input type="date" id="filter-date-end" title="Date de fin">
+        <span class="filter-date-label">{{ t.date_from }}</span>
+        <input type="date" id="filter-date-start" title="{{ t.filter_date_start }}">
+        <span class="filter-date-label">{{ t.date_to }}</span>
+        <input type="date" id="filter-date-end" title="{{ t.filter_date_end }}">
       </div>
-      <button id="filter-reset" class="filter-chip filter-reset-btn" title="Réinitialiser les filtres"><svg class="lucide lucide-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Réinitialiser</button>
+      <button id="filter-reset" class="filter-chip filter-reset-btn" title="{{ t.filter_reset_title }}"><svg class="lucide lucide-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> {{ t.filter_reset_btn }}</button>
     </div>
   </div>
 
   <!-- Vertical quick-jump timeline scrubber -->
-  <aside id="timeline-scrubber" title="Navigation rapide par date"></aside>
+  <aside id="timeline-scrubber" title="{{ t.timeline_title }}"></aside>
 
   <!-- Chat container -->
   <div class="chat-container" id="chat-container">
@@ -97,16 +97,16 @@
 {{ stats_html }}
 
   <!-- Media Gallery Modal -->
-  <div id="gallery-modal" role="dialog" aria-modal="true" aria-label="Galerie de médias">
+  <div id="gallery-modal" role="dialog" aria-modal="true" aria-label="{{ t.gallery_modal_label }}">
     <div id="gallery-inner">
       <div id="gallery-header">
-        <h2><svg class="lucide lucide-images" viewBox="0 0 24 24"><path d="M18 22H4a2 2 0 0 1-2-2V6"/><rect width="18" height="18" x="6" y="2" rx="2"/><circle cx="12" cy="8" r="2"/><path d="m24 16-4-4-5 5-2-2-7 7"/></svg> Galerie de médias</h2>
-        <button id="gallery-close" title="Fermer">&#x2715;</button>
+        <h2><svg class="lucide lucide-images" viewBox="0 0 24 24"><path d="M18 22H4a2 2 0 0 1-2-2V6"/><rect width="18" height="18" x="6" y="2" rx="2"/><circle cx="12" cy="8" r="2"/><path d="m24 16-4-4-5 5-2-2-7 7"/></svg> {{ t.gallery_title }}</h2>
+        <button id="gallery-close" title="{{ t.gallery_close }}">&#x2715;</button>
       </div>
       <div id="gallery-tabs">
-        <button class="g-tab active" data-tab="photos"><svg class="lucide lucide-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Photos &amp; Vidéos <span class="g-tab-count" id="gtc-photos"></span></button>
-        <button class="g-tab" data-tab="audios"><svg class="lucide lucide-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg> Notes vocales <span class="g-tab-count" id="gtc-audios"></span></button>
-        <button class="g-tab" data-tab="docs"><svg class="lucide lucide-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg> Docs &amp; Liens <span class="g-tab-count" id="gtc-docs"></span></button>
+        <button class="g-tab active" data-tab="photos"><svg class="lucide lucide-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> {{ t.gallery_tab_photos }} <span class="g-tab-count" id="gtc-photos"></span></button>
+        <button class="g-tab" data-tab="audios"><svg class="lucide lucide-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg> {{ t.gallery_tab_audios }} <span class="g-tab-count" id="gtc-audios"></span></button>
+        <button class="g-tab" data-tab="docs"><svg class="lucide lucide-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg> {{ t.gallery_tab_docs }} <span class="g-tab-count" id="gtc-docs"></span></button>
       </div>
       <div id="gallery-content">
         <div id="gp-photos" class="g-panel active"></div>
@@ -119,41 +119,43 @@
   <script id="gallery-data" type="application/json">{{ gallery_data }}</script>
   <!-- Pre-computed Chat Search Index (Zero-DOM instant search) -->
   <script id="chat-search-data" type="application/json">{{ search_index }}</script>
+  <!-- i18n translations for JavaScript runtime -->
+  <script id="i18n-data" type="application/json">{{ i18n_json }}</script>
 
   <!-- Lightbox overlay -->
   <div id="lightbox">
-    <button id="lb-close" title="Fermer (Échap)">&#x2715;</button>
-    <button id="lb-prev"  title="Précédent (←)">&#8249;</button>
+    <button id="lb-close" title="{{ t.lb_close_title }}">&#x2715;</button>
+    <button id="lb-prev"  title="{{ t.lb_prev_title }}">&#8249;</button>
     <div id="lb-img-wrap">
-      <img id="lightbox-img" src="" alt="Image agrandie">
+      <img id="lightbox-img" src="" alt="{{ t.lb_img_alt }}">
       <video id="lightbox-video" controls playsinline style="display:none;"></video>
     </div>
-    <button id="lb-next"  title="Suivant (→)">&#8250;</button>
+    <button id="lb-next"  title="{{ t.lb_next_title }}">&#8250;</button>
     <div id="lb-toolbar">
-      <button id="lb-zoom-out" title="Dézoomer (-)">&#x2212;</button>
+      <button id="lb-zoom-out" title="{{ t.lb_zoom_out }}">&#x2212;</button>
       <span id="lb-zoom-label">100%</span>
-      <button id="lb-zoom-in"  title="Zoomer (+)">&#x2b;</button>
-      <button id="lb-zoom-reset" title="Ajuster à l'écran">&#x27F3;</button>
-      <button id="lb-actual-size" title="Taille réelle HD (1:1)">1:1 HD</button>
-      <a id="lb-open-hd" href="#" target="_blank" rel="noopener noreferrer" title="Ouvrir le fichier original HD dans un nouvel onglet">↗ HD</a>
-      <button id="lb-fullscreen" title="Plein écran (F)">&#x26f6;</button>
+      <button id="lb-zoom-in"  title="{{ t.lb_zoom_in }}">&#x2b;</button>
+      <button id="lb-zoom-reset" title="{{ t.lb_zoom_reset }}">&#x27F3;</button>
+      <button id="lb-actual-size" title="{{ t.lb_actual_size }}">1:1 HD</button>
+      <a id="lb-open-hd" href="#" target="_blank" rel="noopener noreferrer" title="{{ t.lb_open_hd }}">&#8599; HD</a>
+      <button id="lb-fullscreen" title="{{ t.lb_fullscreen }}">&#x26f6;</button>
     </div>
   </div>
 
   <!-- Floating Reaction Picker -->
-  <div id="reaction-picker" class="wa-reaction-picker" style="display:none;" role="dialog" aria-label="Choisir une réaction">
-    <button type="button" class="wa-picker-emoji" data-emoji="👍" title="Pouce en l'air">👍</button>
-    <button type="button" class="wa-picker-emoji" data-emoji="❤️" title="Cœur">❤️</button>
-    <button type="button" class="wa-picker-emoji" data-emoji="😂" title="Rires">😂</button>
-    <button type="button" class="wa-picker-emoji" data-emoji="😮" title="Surpris">😮</button>
-    <button type="button" class="wa-picker-emoji" data-emoji="😢" title="Triste">😢</button>
-    <button type="button" class="wa-picker-emoji" data-emoji="🙏" title="Merci / Prière">🙏</button>
+  <div id="reaction-picker" class="wa-reaction-picker" style="display:none;" role="dialog" aria-label="{{ t.reaction_picker_label }}">
+    <button type="button" class="wa-picker-emoji" data-emoji="👍" title="{{ t.reaction_thumb }}">👍</button>
+    <button type="button" class="wa-picker-emoji" data-emoji="❤️" title="{{ t.reaction_heart }}">❤️</button>
+    <button type="button" class="wa-picker-emoji" data-emoji="😂" title="{{ t.reaction_laugh }}">😂</button>
+    <button type="button" class="wa-picker-emoji" data-emoji="😮" title="{{ t.reaction_surprised }}">😮</button>
+    <button type="button" class="wa-picker-emoji" data-emoji="😢" title="{{ t.reaction_sad }}">😢</button>
+    <button type="button" class="wa-picker-emoji" data-emoji="🙏" title="{{ t.reaction_pray }}">🙏</button>
   </div>
 
   <!-- Scroll shortcuts -->
   <div id="scroll-btns">
-    <button onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Haut de page">&#8679;</button>
-    <button onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="Bas de page">&#8681;</button>
+    <button onclick="window.scrollTo({top:0,behavior:'smooth'})" title="{{ t.scroll_top }}">&#8679;</button>
+    <button onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="{{ t.scroll_bottom }}">&#8681;</button>
   </div>
 
   <script>

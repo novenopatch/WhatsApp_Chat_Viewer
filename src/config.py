@@ -90,12 +90,15 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--media", "-m", metavar="DIR", help="Dossier des médias")
     p.add_argument("--output", "-o", metavar="FILE", help="Fichier HTML de sortie (défaut : output.html)")
     p.add_argument("--me", "--your-name", dest="me", metavar="NAME", help="Votre nom ou pseudo dans la conversation (bulles à droite sur fond vert)")
+    p.add_argument("--lang", "-l", choices=["auto", "en", "fr"], default=None, help="Langue de l'interface / Interface language: 'auto' (défaut système), 'en' ou 'fr'")
     p.add_argument("--thumbs", action="store_true", help="Génère des miniatures légères pour les photos afin d'accélérer le rendu")
     p.add_argument("--standalone", "--embed", action="store_true", dest="standalone", help="Intègre les images et médias en Base64 pour produire un unique fichier HTML autonome")
     p.add_argument("--max-embed-size", type=int, default=20, metavar="MB", help="Taille max en Mo par média intégré en mode standalone (défaut : 20)")
     p.add_argument("--serve", action="store_true", help="Lance un serveur Web local avec interface Drag & Drop (ex: http://127.0.0.1:8080)")
     p.add_argument("--port", type=int, default=8080, help="Port pour le serveur Web --serve (défaut : 8080)")
     p.add_argument("--host", default="127.0.0.1", help="Hôte d'écoute pour le serveur Web --serve (défaut : 127.0.0.1)")
+    p.add_argument("--verbose", "-v", action="store_true", help="Mode verbeux : affiche le suivi détaillé de l'extraction, la RAM et le CPU consommés")
+    p.add_argument("--ultra-perf", "--perf", "--fast", action="store_true", dest="ultra_perf", help="Mode Ultra-Performance : décompression turbo, parsing accéléré, encodage optimisé")
     return p.parse_args(args)
 
 
@@ -113,6 +116,8 @@ def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str |
     media_dir: str | None = None
     output_file: str | None = None
     me_user: str | None = None
+    opt_ultra_perf = getattr(args, "ultra_perf", False)
+    opt_verbose = getattr(args, "verbose", False)
 
     # Tier 1 — CLI args
     target_zip = args.zip
@@ -124,7 +129,12 @@ def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str |
         target_zip = args.dir
 
     if target_zip:
-        chat_file, media_dir = extract_whatsapp_zip(target_zip, args.extract_dir)
+        chat_file, media_dir = extract_whatsapp_zip(
+            target_zip,
+            args.extract_dir,
+            ultra_perf=opt_ultra_perf,
+            verbose=opt_verbose,
+        )
 
     # Handle input_target if not a zip
     if chat_file is None and args.input_target:
@@ -168,10 +178,20 @@ def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str |
         env = parse_dotenv(dotenv_path)
         print("• Fichier .env détecté → lecture de la configuration…")
 
+        if not opt_ultra_perf and env.get("ULTRA_PERF", "").strip().lower() in ("true", "1", "yes"):
+            opt_ultra_perf = True
+        if not opt_verbose and env.get("VERBOSE", "").strip().lower() in ("true", "1", "yes"):
+            opt_verbose = True
+
         if chat_file is None:
             zip_env = env.get("ZIP_FILE", "").strip()
             if zip_env and is_zip_file(zip_env):
-                chat_file, media_dir = extract_whatsapp_zip(zip_env, env.get("EXTRACT_DIR"))
+                chat_file, media_dir = extract_whatsapp_zip(
+                    zip_env,
+                    env.get("EXTRACT_DIR"),
+                    ultra_perf=opt_ultra_perf,
+                    verbose=opt_verbose,
+                )
 
         if chat_file is None:
             chat_dir = env.get("CHAT_DIR", "").strip()
