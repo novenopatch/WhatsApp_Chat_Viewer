@@ -82,7 +82,16 @@ whatsapp_chat_viewer/
 
 ---
 
-## 🛠️ Utilisation
+## 🛠️ Installation & Utilisation
+
+### 0. Prérequis & Installation
+
+Le projet fonctionne nativement avec la bibliothèque standard Python 3 (Python >= 3.10) sans dépendance obligatoire.
+
+Pour bénéficier de l'accélération des images et de la génération des miniatures (`--thumbs`) :
+```bash
+pip install -r requirements.txt
+```
 
 ### 1. En ligne de commande (recommandé)
 
