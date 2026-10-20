@@ -1765,24 +1765,178 @@ body.dark-mode .wa-reaction-picker {
     transform: scale(1.35);
 }
 
-/* Print CSS */
+.print-header {
+    display: none;
+}
+
+/* Print CSS - Mise en page paginée propre style Livre WhatsApp */
 @media print {
-    .top-bar, #scroll-btns, .stats-section, .me-selector-wrapper, #filter-bar {
+    @page {
+        size: A4 portrait;
+        margin: 14mm 10mm 16mm 10mm;
+        @bottom-right {
+            content: "Page " counter(page);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 8pt;
+            color: #777;
+        }
+    }
+
+    *, *:before, *:after {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Masquage de tous les contrôles interactifs et menus */
+    .top-bar,
+    #scroll-btns,
+    .stats-section,
+    .me-selector-wrapper,
+    #filter-bar,
+    #gallery-modal,
+    #lightbox,
+    #reaction-picker,
+    .wa-react-btn,
+    .audio-speed-btn,
+    .video-fs-btn,
+    .search-nav,
+    #timeline-scrubber,
+    .legend-wrapper,
+    .legend {
         display: none !important;
     }
+
     body {
-        background: #fff !important;
-        color: #000 !important;
+        background: #ffffff !important;
+        color: #111b21 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        font-size: 10.5pt !important;
     }
-    .conversation-header, .chat-container {
+
+    /* En-tête d'impression dédié propre style livre */
+    .print-header {
+        display: block !important;
+        border-bottom: 2px solid #25D366;
+        padding-bottom: 8px;
+        margin-bottom: 16px;
+        page-break-after: avoid;
+        break-after: avoid;
+    }
+
+    .print-title {
+        font-size: 16pt;
+        font-weight: 700;
+        color: #075E54;
+        margin-bottom: 3px;
+    }
+
+    .print-meta {
+        font-size: 9.5pt;
+        color: #555555;
+    }
+
+    .conversation-header {
+        display: none !important;
+    }
+
+    .chat-container {
         max-width: 100% !important;
         width: 100% !important;
         box-shadow: none !important;
         border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
+
+    /* Éviter de couper une bulle ou un groupe de messages en deux */
     .message-row {
         content-visibility: visible !important;
-        page-break-inside: avoid;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        margin-bottom: 6px !important;
+    }
+
+    .sub-message {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    .day-group {
+        page-break-inside: auto;
+        break-inside: auto;
+    }
+
+    .date-separator {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+        margin: 14px 0 8px !important;
+    }
+
+    .system-message {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        margin: 6px 0 !important;
+    }
+
+    .wa-quote-box {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    /* Bulles de messages optimisées pour le papier */
+    .message {
+        box-shadow: none !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+
+    .message.sent {
+        background-color: #e7fedc !important;
+        border-color: #c0ebb4 !important;
+    }
+
+    .message.received {
+        background-color: #f7f7f7 !important;
+        border-color: #e5e7eb !important;
+    }
+
+    /* Adaptation des médias pour l'impression papier */
+    .media-img, .sticker-img {
+        max-height: 180px !important;
+        width: auto !important;
+        object-fit: contain !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        border-radius: 4px;
+    }
+
+    .audio-container audio,
+    .video-container video {
+        display: none !important;
+    }
+
+    .audio-container::after {
+        content: "🎤 Note vocale / Audio";
+        display: inline-block;
+        padding: 3px 8px;
+        background: #f0f2f5;
+        border-radius: 4px;
+        font-size: 8.5pt;
+        color: #4b5563;
+        border: 1px solid #d1d5db;
+    }
+
+    .video-container::after {
+        content: "🎬 Vidéo partagée";
+        display: inline-block;
+        padding: 3px 8px;
+        background: #f0f2f5;
+        border-radius: 4px;
+        font-size: 8.5pt;
+        color: #4b5563;
+        border: 1px solid #d1d5db;
     }
 }
 

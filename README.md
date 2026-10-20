@@ -93,11 +93,26 @@ Pour bénéficier de l'accélération des images et de la génération des minia
 pip install -r requirements.txt
 ```
 
-### 1. En ligne de commande (recommandé)
+### 1. Mode Serveur Web Drag & Drop (Le plus simple)
+
+Pour visualiser et convertir une archive sans aucune ligne de commande complexe :
+```bash
+python3 build.py --serve
+```
+* Ouvre automatiquement votre navigateur sur `http://127.0.0.1:8080`.
+* Glissez-déposez simplement votre archive `.zip` WhatsApp.
+* Visualisez le chat instantanément ou téléchargez le fichier HTML généré !
+
+---
+
+### 2. En ligne de commande (CLI)
 
 ```bash
 # 📦 Exploiter directement une archive ZIP générée par WhatsApp (iOS ou Android)
 python3 build.py mon_export.zip
+
+# 📄 Générer un fichier HTML UNIQUE autonome (Standalone - photos & audios en Base64)
+python3 build.py mon_export.zip --standalone -o chat_autonome.html
 
 # Ou avec options spécifiques
 python3 build.py --zip mon_export.zip --output ma_conversation.html --me "Mon Nom"
@@ -111,6 +126,11 @@ python3 build.py --chat /chemin/vers/_chat.txt --media /chemin/vers/media/ --out
 
 Options disponibles (`python3 build.py --help`) :
 - `input_target` : fichier `.zip`, `.txt` ou dossier d'export WhatsApp passé directement en argument
+- `--serve` : lance l'interface Web locale avec Drag & Drop (port par défaut : 8080)
+- `--port PORT` : port pour le serveur Web (défaut : 8080)
+- `--host HOST` : hôte d'écoute pour le serveur Web (défaut : 127.0.0.1)
+- `--standalone, --embed` : intègre les images, stickers et audios en Base64 pour obtenir **un seul fichier HTML 100% autonome** transportable par email ou clé USB
+- `--max-embed-size MB` : taille maximale en Mo par média intégré en standalone (défaut : 20 Mo)
 - `-z, --zip FILE` : archive `.zip` d'export WhatsApp (auto-extraction sécurisée et détection de la discussion)
 - `--extract-dir DIR` : dossier cible pour l'extraction du zip (défaut : dossier au nom de l'archive)
 - `-d, --dir DIR` : dossier d'export WhatsApp (détecte automatiquement le fichier `.txt` et le dossier `media/`)
@@ -122,7 +142,18 @@ Options disponibles (`python3 build.py --help`) :
 
 ---
 
-### 2. Via fichier `.env`
+### 3. Impression et Export PDF paginé
+
+Le visualiseur intègre une feuille de style d'impression publication-ready (`@media print`) :
+* Bouton `🖨️` dédié dans la barre supérieure (ou raccourci clavier `Ctrl+P` / `Cmd+P`).
+* **Pagination propre** : aucun découpage de bulle de message ou d'image au milieu d'une page (`break-inside: avoid`).
+* **En-tête de document** élégant reprenant les participants, la date et le nombre de messages.
+* Masquage automatique des éléments interactifs (recherche, menus, boutons, audio players).
+* Numérotation des pages automatique en pied de page.
+
+---
+
+### 4. Via fichier `.env`
 
 Copiez [`.env.example`](.env.example) vers `.env` et adaptez les chemins :
 

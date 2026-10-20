@@ -30,9 +30,19 @@
     <button id="wallpaper-toggle" class="theme-toggle-btn" title="Activer/désactiver le fond d'écran WhatsApp" aria-label="Fond d'écran">
       <span id="wallpaper-icon">🏔️</span>
     </button>
+    <!-- Print / Export to PDF button -->
+    <button id="print-btn" class="theme-toggle-btn" title="Imprimer ou enregistrer en PDF (Ctrl+P)" aria-label="Imprimer / Exporter PDF" onclick="window.print()">
+      🖨️
+    </button>
     <button id="theme-toggle" class="theme-toggle-btn" title="Basculer le thème Sombre / Clair" aria-label="Basculer le thème">
       <span id="theme-icon">🌓</span>
     </button>
+  </div>
+
+  <!-- Print-only document header for clean PDF book layout -->
+  <div class="print-header">
+    <div class="print-title">💬 {{ chat_label }}</div>
+    <div class="print-meta">{{ attendees_header }} &bull; Du {{ start_date }} au {{ end_date }}</div>
   </div>
 
   <!-- Conversation header -->
@@ -126,6 +136,8 @@
       <a id="lb-open-hd" href="#" target="_blank" rel="noopener noreferrer" title="Ouvrir le fichier original HD dans un nouvel onglet">↗ HD</a>
       <button id="lb-fullscreen" title="Plein écran (F)">&#x26f6;</button>
     </div>
+  </div>
+
   <!-- Floating Reaction Picker -->
   <div id="reaction-picker" class="wa-reaction-picker" style="display:none;" role="dialog" aria-label="Choisir une réaction">
     <button type="button" class="wa-picker-emoji" data-emoji="👍" title="Pouce en l'air">👍</button>

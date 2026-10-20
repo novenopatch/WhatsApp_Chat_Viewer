@@ -76,6 +76,12 @@ from src.zip_handler import (
 
 def main() -> None:
     """Main CLI execution flow."""
+    cli_args = parse_args()
+    if getattr(cli_args, "serve", False):
+        from src.server import run_server
+        run_server(host=cli_args.host, port=cli_args.port)
+        return
+
     chat_file, media_dir, output_file, me_user = load_config()
 
     print(f"\n  chat    → {chat_file}")
@@ -109,13 +115,24 @@ def main() -> None:
         else:
             print(f"⚠️  '{me_user}' n'a pas été trouvé parmi les participants : {', '.join(attendees)}")
 
-    cli_args = parse_args()
     if getattr(cli_args, "thumbs", False) or os.environ.get("GENERATE_THUMBS"):
         print("🖼️  Génération des miniatures d'images...")
         num_thumbs = generate_thumbnails(media_dir)
         print(f"   Miniatures générées : {num_thumbs}")
 
-    html_output = build_html(messages, media_dir, output_path=output_file, me_user=me_user)
+    standalone = getattr(cli_args, "standalone", False)
+    max_embed_bytes = getattr(cli_args, "max_embed_size", 20) * 1024 * 1024
+    if standalone:
+        print("📦 Mode Standalone activé : les médias sont intégrés en Base64 dans le HTML.")
+
+    html_output = build_html(
+        messages,
+        media_dir,
+        output_path=output_file,
+        me_user=me_user,
+        standalone=standalone,
+        max_embed_size=max_embed_bytes,
+    )
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(html_output)
 

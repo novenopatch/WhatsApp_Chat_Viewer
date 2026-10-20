@@ -83,6 +83,11 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--output", "-o", metavar="FILE", help="Fichier HTML de sortie (défaut : output.html)")
     p.add_argument("--me", "--your-name", dest="me", metavar="NAME", help="Votre nom ou pseudo dans la conversation (bulles à droite sur fond vert)")
     p.add_argument("--thumbs", action="store_true", help="Génère des miniatures légères pour les photos afin d'accélérer le rendu")
+    p.add_argument("--standalone", "--embed", action="store_true", dest="standalone", help="Intègre les images et médias en Base64 pour produire un unique fichier HTML autonome")
+    p.add_argument("--max-embed-size", type=int, default=20, metavar="MB", help="Taille max en Mo par média intégré en mode standalone (défaut : 20)")
+    p.add_argument("--serve", action="store_true", help="Lance un serveur Web local avec interface Drag & Drop (ex: http://127.0.0.1:8080)")
+    p.add_argument("--port", type=int, default=8080, help="Port pour le serveur Web --serve (défaut : 8080)")
+    p.add_argument("--host", default="127.0.0.1", help="Hôte d'écoute pour le serveur Web --serve (défaut : 127.0.0.1)")
     return p.parse_args(args)
 
 

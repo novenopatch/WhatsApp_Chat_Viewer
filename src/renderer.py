@@ -1,5 +1,6 @@
 """HTML generation and message rendering for WhatsApp conversations."""
 
+import base64
 import html
 import json
 import os
@@ -64,6 +65,44 @@ def generate_thumbnails(media_dir: str, max_size: tuple[int, int] = (400, 400), 
     return created
 
 
+MIME_MAP = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".opus": "audio/ogg; codecs=opus",
+    ".ogg": "audio/ogg",
+    ".mp3": "audio/mpeg",
+    ".m4a": "audio/mp4",
+    ".aac": "audio/aac",
+    ".wav": "audio/wav",
+    ".mp4": "video/mp4",
+    ".mov": "video/quicktime",
+    ".3gp": "video/3gpp",
+    ".pdf": "application/pdf",
+    ".vcf": "text/vcard",
+    ".txt": "text/plain",
+}
+
+
+def to_base64_data_uri(file_path: str, max_size: int = 20 * 1024 * 1024) -> str | None:
+    """Read a local media file and return its Base64 Data URI if within max_size."""
+    if not file_path or not os.path.isfile(file_path):
+        return None
+    try:
+        size = os.path.getsize(file_path)
+        if size > max_size:
+            return None
+        _, ext = os.path.splitext(file_path.lower())
+        mime = MIME_MAP.get(ext, "application/octet-stream")
+        with open(file_path, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode("ascii")
+        return f"data:{mime};base64,{encoded}"
+    except OSError:
+        return None
+
+
 def _get_template_path(filename: str) -> str:
     """Return the absolute path to a template file."""
     return os.path.join(os.path.dirname(__file__), "templates", filename)
@@ -76,14 +115,30 @@ def load_template_file(filename: str) -> str:
         return f.read()
 
 
-def render_attachment(filename: str, media_dir: str, output_dir: str = "") -> str:
-    """Return the HTML snippet for a given attachment filename."""
+def render_attachment(
+    filename: str,
+    media_dir: str,
+    output_dir: str = "",
+    standalone: bool = False,
+    max_embed_size: int = 20 * 1024 * 1024,
+) -> str:
+    """Return the HTML snippet for a given attachment filename.
+
+    If standalone is True, encodes local files directly into Base64 Data URIs.
+    """
     if output_dir:
         rel_media_dir = os.path.relpath(media_dir, output_dir).replace("\\", "/")
     else:
         rel_media_dir = media_dir.replace("\\", "/")
 
     filepath = f"{rel_media_dir}/{filename}".replace("//", "/")
+    disk_path = os.path.join(media_dir, filename)
+
+    if standalone:
+        data_uri = to_base64_data_uri(disk_path, max_size=max_embed_size)
+        if data_uri:
+            filepath = data_uri
+
     esc_filepath = html.escape(filepath, quote=True)
     parts = filename.split("-")
 
@@ -94,8 +149,12 @@ def render_attachment(filename: str, media_dir: str, output_dir: str = "") -> st
     if filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
         thumb_disk_path = os.path.join(media_dir, ".thumbs", filename)
         if os.path.isfile(thumb_disk_path):
-            thumb_filepath = f"{rel_media_dir}/.thumbs/{filename}".replace("//", "/")
-            esc_thumb = html.escape(thumb_filepath, quote=True)
+            if standalone:
+                thumb_uri = to_base64_data_uri(thumb_disk_path, max_size=max_embed_size) or filepath
+                esc_thumb = html.escape(thumb_uri, quote=True)
+            else:
+                thumb_filepath = f"{rel_media_dir}/.thumbs/{filename}".replace("//", "/")
+                esc_thumb = html.escape(thumb_filepath, quote=True)
             return (
                 f'<img src="{esc_thumb}" data-full="{esc_filepath}" '
                 f'class="media-img" alt="Image" loading="lazy" decoding="async">'
@@ -120,7 +179,7 @@ def render_attachment(filename: str, media_dir: str, output_dir: str = "") -> st
         )
     if filename.lower().endswith(".pdf"):
         return f'<a href="{esc_filepath}" target="_blank">📄 {html.escape(filename)}</a>'
-    return f'<a href="{esc_filepath}">📎 {html.escape(filename)}</a>'
+    return f'<a href="{esc_filepath}" download="{html.escape(filename, quote=True)}">📎 {html.escape(filename)}</a>'
 
 
 def render_reactions_html(reactions: list[dict], msg_id: str) -> str:
@@ -189,6 +248,8 @@ def _collect_gallery_data(
     messages: list[dict],
     media_dir: str,
     output_dir: str = "",
+    standalone: bool = False,
+    max_embed_size: int = 20 * 1024 * 1024,
 ) -> dict:
     """Collect gallery items (photos, audios, docs, links) from parsed messages.
 
@@ -214,13 +275,24 @@ def _collect_gallery_data(
         msg_id = f"msg-{idx}"
 
         if fname:
+            disk_path = os.path.join(media_dir, fname)
             filepath = f"{rel_media}/{fname}".replace("//", "/")
+            if standalone:
+                data_uri = to_base64_data_uri(disk_path, max_size=max_embed_size)
+                if data_uri:
+                    filepath = data_uri
+
             if fname.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
                 thumb_disk_path = os.path.join(media_dir, ".thumbs", fname)
-                thumb_filepath = f"{rel_media}/.thumbs/{fname}".replace("//", "/") if os.path.isfile(thumb_disk_path) else filepath
+                if os.path.isfile(thumb_disk_path):
+                    if standalone:
+                        thumb_filepath = to_base64_data_uri(thumb_disk_path, max_size=max_embed_size) or filepath
+                    else:
+                        thumb_filepath = f"{rel_media}/.thumbs/{fname}".replace("//", "/")
+                else:
+                    thumb_filepath = filepath
                 gallery_photos.append({"src": filepath, "thumb": thumb_filepath, "sender": sender, "time": time_str, "msgId": msg_id})
             elif fname.lower().endswith(".webp"):
-                # webp are stickers – include in photos tab but mark as sticker
                 gallery_photos.append({"src": filepath, "sender": sender, "time": time_str, "sticker": True, "msgId": msg_id})
             elif fname.lower().endswith((".mp4", ".mov", ".3gp")):
                 gallery_photos.append({"src": filepath, "sender": sender, "time": time_str, "video": True, "msgId": msg_id})
@@ -250,6 +322,8 @@ def render_grouped_messages(
     color_map: dict[str, str],
     output_dir: str = "",
     me_user: str | None = None,
+    standalone: bool = False,
+    max_embed_size: int = 20 * 1024 * 1024,
 ) -> tuple[str, list[str], tuple[str, str]]:
     """Render messages grouped by sender into HTML with date separators and system notifications.
 
@@ -345,7 +419,13 @@ def render_grouped_messages(
                     sub_media_type = "doc"
                 else:
                     sub_media_type = "doc"
-                content_html = render_attachment(filename, media_dir, output_dir=output_dir)
+                content_html = render_attachment(
+                    filename,
+                    media_dir,
+                    output_dir=output_dir,
+                    standalone=standalone,
+                    max_embed_size=max_embed_size,
+                )
             else:
                 if URL_PATTERN.search(clean_content):
                     sub_media_type = "link"
@@ -407,6 +487,8 @@ def build_html(
     output_path: str = "",
     me_user: str | None = None,
     minify: bool = True,
+    standalone: bool = False,
+    max_embed_size: int = 20 * 1024 * 1024,
 ) -> str:
     """Build the full self-contained HTML page from parsed messages."""
     if not messages:
@@ -422,11 +504,23 @@ def build_html(
 
     output_dir = os.path.dirname(os.path.abspath(output_path)) if output_path else ""
     grouped_html, attendees, (start_date, end_date) = render_grouped_messages(
-        messages, media_dir, color_map, output_dir=output_dir, me_user=resolved_me
+        messages,
+        media_dir,
+        color_map,
+        output_dir=output_dir,
+        me_user=resolved_me,
+        standalone=standalone,
+        max_embed_size=max_embed_size,
     )
 
     # Collect gallery data (photos, audios, docs, links)
-    gallery_data = _collect_gallery_data(messages, media_dir, output_dir=output_dir)
+    gallery_data = _collect_gallery_data(
+        messages,
+        media_dir,
+        output_dir=output_dir,
+        standalone=standalone,
+        max_embed_size=max_embed_size,
+    )
     gallery_data_json = json.dumps(gallery_data, ensure_ascii=False)
     total_media_count = (
         len(gallery_data["photos"])
