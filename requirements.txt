@@ -3,3 +3,7 @@
 # Pillow est recommandé pour la génération optimisée des miniatures d'images (--thumbs).
 Pillow>=10.0.0
 python-dotenv>=0.21.0
+
+# Optionnel — compression Brotli (meilleur ratio que Gzip, ~15-25% de plus)
+# Décommentez ou installez manuellement : pip install brotli
+# brotli>=1.0.9

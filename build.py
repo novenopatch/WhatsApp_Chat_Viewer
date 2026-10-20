@@ -144,7 +144,20 @@ def main() -> None:
     gz_kb = os.path.getsize(gz_output) / 1024
     ratio = (1 - (gz_kb / orig_kb)) * 100 if orig_kb else 0
     print(f"✅ Fichier généré : {output_file}  ({len(messages):,} messages, {orig_kb:.1f} Ko)")
-    print(f"📦 Version compressée : {gz_output}  ({gz_kb:.1f} Ko, -{ratio:.1f}%)")
+    print(f"📦 Version Gzip    : {gz_output}  ({gz_kb:.1f} Ko, -{ratio:.1f}%)")
+
+    # Compression Brotli (optionnelle — nécessite `pip install brotli`)
+    try:
+        import brotli  # type: ignore
+        html_bytes = html_output.encode("utf-8")
+        br_output = output_file + ".br"
+        with open(br_output, "wb") as f:
+            f.write(brotli.compress(html_bytes, quality=11))
+        br_kb = os.path.getsize(br_output) / 1024
+        br_ratio = (1 - (br_kb / orig_kb)) * 100 if orig_kb else 0
+        print(f"🗜️  Version Brotli  : {br_output}  ({br_kb:.1f} Ko, -{br_ratio:.1f}%)")
+    except ImportError:
+        pass  # brotli non installé — compression Gzip suffisante
 
 
 if __name__ == "__main__":

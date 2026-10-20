@@ -223,7 +223,12 @@ def extract_trailing_reactions(content: str, sender: str = "") -> tuple[str, lis
     return cleaned.rstrip(), reactions
 
 
-def resolve_quote_target_id(messages: list[dict], current_idx: int, content: str) -> str | None:
+def resolve_quote_target_id(
+    messages: list[dict],
+    current_idx: int,
+    content: str,
+    max_lookback: int = 300,
+) -> str | None:
     """Find the ID of the earlier message referenced in a quote block, if any."""
     lines = content.split("\n")
     quote_first_line = None
@@ -243,7 +248,8 @@ def resolve_quote_target_id(messages: list[dict], current_idx: int, content: str
     if not snippet:
         return None
 
-    for prev_idx in range(current_idx - 1, -1, -1):
+    min_idx = max(0, current_idx - max_lookback)
+    for prev_idx in range(current_idx - 1, min_idx - 1, -1):
         prev = messages[prev_idx]
         if prev.get("is_reaction_event"):
             continue
@@ -256,8 +262,8 @@ def resolve_quote_target_id(messages: list[dict], current_idx: int, content: str
     return None
 
 
-def process_chat_reactions(messages: list[dict]) -> list[dict]:
-    """Link reactions to previous messages and extract trailing reactions."""
+def process_chat_reactions(messages: list[dict], max_lookback: int = 300) -> list[dict]:
+    """Link reactions to previous messages and extract trailing reactions with O(N) sliding lookback."""
     for idx, msg in enumerate(messages):
         # 1. Trailing reactions
         msg_content = msg.get("content", "")
@@ -271,7 +277,8 @@ def process_chat_reactions(messages: list[dict]) -> list[dict]:
         if react_info:
             emoji, target_snippet = react_info
             target_found = False
-            for prev_idx in range(idx - 1, -1, -1):
+            min_idx = max(0, idx - max_lookback)
+            for prev_idx in range(idx - 1, min_idx - 1, -1):
                 prev_msg = messages[prev_idx]
                 if prev_msg.get("is_reaction_event"):
                     continue
