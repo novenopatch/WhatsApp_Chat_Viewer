@@ -1,5 +1,7 @@
 """Statistics calculation and HTML rendering for WhatsApp conversations."""
 
+from __future__ import annotations
+
 import html
 from collections import Counter
 from datetime import datetime

@@ -20,10 +20,15 @@ class TestCLIAndIntegration(unittest.TestCase):
             "[01/01/2024 10:01:00] Bob: Test message 2\n"
         )
 
+    def _run_cli(self, cmd):
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+        return subprocess.run(cmd, cwd=self.root_dir, capture_output=True, text=True, env=env)
+
     def test_cli_help(self):
         """Ensure `python3 build.py --help` runs without crashing and outputs usage."""
         cmd = [sys.executable, "build.py", "--help"]
-        res = subprocess.run(cmd, cwd=self.root_dir, capture_output=True, text=True)
+        res = self._run_cli(cmd)
         self.assertEqual(res.returncode, 0)
         self.assertIn("usage:", res.stdout.lower())
         self.assertIn("--chat", res.stdout)
@@ -46,7 +51,7 @@ class TestCLIAndIntegration(unittest.TestCase):
                 "--output", output_file,
                 "--me", "Alice",
             ]
-            res = subprocess.run(cmd, cwd=self.root_dir, capture_output=True, text=True)
+            res = self._run_cli(cmd)
             self.assertEqual(res.returncode, 0, f"CLI error: {res.stderr}")
             self.assertTrue(os.path.isfile(output_file))
             with open(output_file, "r", encoding="utf-8") as f:
@@ -71,7 +76,7 @@ class TestCLIAndIntegration(unittest.TestCase):
             "--chat", "non_existent_file_xyz_123.txt",
             "--output", "dummy.html",
         ]
-        res = subprocess.run(cmd, cwd=self.root_dir, capture_output=True, text=True)
+        res = self._run_cli(cmd)
         self.assertNotEqual(res.returncode, 0)
         self.assertIn("Fichier introuvable", res.stdout)
 
@@ -110,7 +115,7 @@ class TestCLIAndIntegration(unittest.TestCase):
                 "--dir", td,
                 "--output", output_file,
             ]
-            res = subprocess.run(cmd, cwd=self.root_dir, capture_output=True, text=True)
+            res = self._run_cli(cmd)
             self.assertEqual(res.returncode, 0, f"Error: {res.stderr}")
             self.assertTrue(os.path.isfile(output_file))
 
@@ -127,7 +132,7 @@ class TestCLIAndIntegration(unittest.TestCase):
                 "--chat", empty_chat,
                 "--output", os.path.join(td, "out.html"),
             ]
-            res = subprocess.run(cmd, cwd=self.root_dir, capture_output=True, text=True)
+            res = self._run_cli(cmd)
             self.assertNotEqual(res.returncode, 0)
             self.assertIn("Aucun message", res.stdout)
 

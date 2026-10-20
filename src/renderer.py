@@ -1,5 +1,7 @@
 """HTML generation and message rendering for WhatsApp conversations."""
 
+from __future__ import annotations
+
 import base64
 import concurrent.futures
 import html

@@ -1,5 +1,7 @@
 """Constants and regular expressions used across the WhatsApp Chat Viewer."""
 
+from __future__ import annotations
+
 import re
 
 # Regex for WhatsApp messages, handling optional LTR mark \u200e and brackets

@@ -1,7 +1,10 @@
 """WhatsApp chat parser and text formatting utilities."""
 
+from __future__ import annotations
+
 import html
 import os
+import re
 from collections.abc import Iterator
 from datetime import datetime
 from src.constants import (

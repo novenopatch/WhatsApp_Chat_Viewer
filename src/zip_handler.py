@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import shutil
 import struct
+from typing import Any, Callable
 import zipfile
 from src.constants import (
     MESSAGE_PATTERN,

@@ -1,5 +1,7 @@
 """Helper functions to detect and resolve the 'Me' participant."""
 
+from __future__ import annotations
+
 import os
 import subprocess
 

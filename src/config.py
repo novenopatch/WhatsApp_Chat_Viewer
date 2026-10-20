@@ -1,5 +1,7 @@
 """Configuration loader supporting CLI args, .env file, defaults, and interactive prompts."""
 
+from __future__ import annotations
+
 import argparse
 import os
 from src import __version__
