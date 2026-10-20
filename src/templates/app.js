@@ -1161,6 +1161,203 @@
   };
 
   // -------------------------------------------------------------------------
+  // Quotes Navigation & Interactive Reactions Manager
+  // -------------------------------------------------------------------------
+  (function() {
+    const reactionPicker = document.getElementById('reaction-picker');
+    let activeReactMsgId = null;
+
+    // 1. Delegated Quote click navigation
+    if (chatContainer) {
+      chatContainer.addEventListener('click', function(e) {
+        const quoteBox = e.target.closest('.wa-quote-box');
+        if (quoteBox) {
+          const targetId = quoteBox.getAttribute('data-target-id');
+          if (targetId && window.jumpToMessage) {
+            window.jumpToMessage(targetId);
+            return;
+          }
+          // Fallback: search backwards for matching message
+          const quoteTextEl = quoteBox.querySelector('.wa-quote-text');
+          const authorAttr = quoteBox.getAttribute('data-quoted-author');
+          if (quoteTextEl && window.jumpToMessage) {
+            const snippet = quoteTextEl.textContent.trim().toLowerCase();
+            const author = (authorAttr || '').trim().toLowerCase();
+            const currentSub = quoteBox.closest('.sub-message');
+            const allSubs = Array.from(chatContainer.querySelectorAll('.sub-message'));
+            const curIdx = currentSub ? allSubs.indexOf(currentSub) : allSubs.length;
+            for (let j = curIdx - 1; j >= 0; j--) {
+              const sm = allSubs[j];
+              if (author) {
+                const row = sm.closest('.message-row');
+                const rowSender = (row ? (row.getAttribute('data-sender') || '') : '').toLowerCase();
+                if (rowSender !== author) continue;
+              }
+              const smText = sm.querySelector('.text');
+              if (smText && smText.textContent.toLowerCase().includes(snippet)) {
+                window.jumpToMessage(sm.id);
+                return;
+              }
+            }
+          }
+        }
+
+        // 2. Click on reaction trigger button (😊)
+        const reactBtn = e.target.closest('.wa-react-btn');
+        if (reactBtn && reactionPicker) {
+          e.stopPropagation();
+          const msgId = reactBtn.getAttribute('data-msg-id');
+          if (activeReactMsgId === msgId && reactionPicker.style.display === 'flex') {
+            hideReactionPicker();
+            return;
+          }
+          activeReactMsgId = msgId;
+          const rect = reactBtn.getBoundingClientRect();
+          reactionPicker.style.display = 'flex';
+          const pickerWidth = 240;
+          let left = rect.left + (rect.width / 2) - (pickerWidth / 2);
+          if (left < 10) left = 10;
+          if (left + pickerWidth > window.innerWidth - 10) left = window.innerWidth - pickerWidth - 10;
+          let top = rect.top - 46;
+          if (top < 10) top = rect.bottom + 8;
+          reactionPicker.style.left = `${left}px`;
+          reactionPicker.style.top = `${top}px`;
+          return;
+        }
+
+        // 3. Click on an existing reaction pill to toggle
+        const pill = e.target.closest('.wa-reaction-pill');
+        if (pill) {
+          const container = pill.closest('.wa-reactions-container');
+          const subMsg = pill.closest('.sub-message');
+          const msgId = (container && container.getAttribute('data-msg-id')) || (subMsg && subMsg.id);
+          const emoji = pill.getAttribute('data-emoji');
+          if (msgId && emoji) {
+            e.stopPropagation();
+            toggleUserReaction(msgId, emoji);
+          }
+        }
+      });
+    }
+
+    function hideReactionPicker() {
+      if (reactionPicker) {
+        reactionPicker.style.display = 'none';
+        activeReactMsgId = null;
+      }
+    }
+
+    // Reaction picker emoji selection
+    if (reactionPicker) {
+      reactionPicker.addEventListener('click', function(e) {
+        const emojiBtn = e.target.closest('.wa-picker-emoji');
+        if (emojiBtn && activeReactMsgId) {
+          e.stopPropagation();
+          const emoji = emojiBtn.getAttribute('data-emoji');
+          toggleUserReaction(activeReactMsgId, emoji);
+          hideReactionPicker();
+        }
+      });
+    }
+
+    // Close picker on outside click, scroll or Escape
+    document.addEventListener('click', function(e) {
+      if (reactionPicker && reactionPicker.style.display === 'flex') {
+        if (!reactionPicker.contains(e.target)) {
+          hideReactionPicker();
+        }
+      }
+    });
+
+    window.addEventListener('scroll', function() {
+      if (reactionPicker && reactionPicker.style.display === 'flex') {
+        hideReactionPicker();
+      }
+    }, { passive: true });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && reactionPicker && reactionPicker.style.display === 'flex') {
+        hideReactionPicker();
+      }
+    });
+
+    // LocalStorage user reactions management
+    const STORAGE_KEY = 'wa_user_reactions_v1';
+
+    function getUserReactions() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveUserReactions(data) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {}
+    }
+
+    function toggleUserReaction(msgId, emoji) {
+      const data = getUserReactions();
+      const currentEmoji = data[msgId];
+      const container = document.querySelector(`.wa-reactions-container[data-msg-id="${msgId}"]`);
+      if (!container) return;
+
+      if (currentEmoji === emoji) {
+        delete data[msgId];
+        saveUserReactions(data);
+        updateReactionDOM(container, emoji, -1, false);
+      } else {
+        if (currentEmoji) {
+          updateReactionDOM(container, currentEmoji, -1, false);
+        }
+        data[msgId] = emoji;
+        saveUserReactions(data);
+        updateReactionDOM(container, emoji, 1, true);
+      }
+    }
+
+    function updateReactionDOM(container, emoji, delta, isActive) {
+      let pill = container.querySelector(`.wa-reaction-pill[data-emoji="${emoji}"]`);
+      if (pill) {
+        const countEl = pill.querySelector('.wa-reaction-count');
+        let count = parseInt(countEl ? countEl.textContent : '1', 10) + delta;
+        if (count <= 0) {
+          pill.remove();
+        } else {
+          if (countEl) countEl.textContent = count;
+          if (isActive) pill.classList.add('is-active');
+          else pill.classList.remove('is-active');
+        }
+      } else if (delta > 0) {
+        pill = document.createElement('span');
+        pill.className = 'wa-reaction-pill' + (isActive ? ' is-active' : '');
+        pill.setAttribute('data-emoji', emoji);
+        pill.title = 'Vous: ' + emoji;
+        pill.innerHTML = `<span class="wa-reaction-emoji">${emoji}</span><span class="wa-reaction-count">1</span>`;
+        container.appendChild(pill);
+      }
+    }
+
+    function restoreUserReactions() {
+      const data = getUserReactions();
+      for (const [msgId, emoji] of Object.entries(data)) {
+        const container = document.querySelector(`.wa-reactions-container[data-msg-id="${msgId}"]`);
+        if (container) {
+          updateReactionDOM(container, emoji, 1, true);
+        }
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', restoreUserReactions);
+    } else {
+      restoreUserReactions();
+    }
+  })();
+
+  // -------------------------------------------------------------------------
   // Media Gallery (High-Performance On-Demand Lazy Loading)
   // -------------------------------------------------------------------------
   (function() {

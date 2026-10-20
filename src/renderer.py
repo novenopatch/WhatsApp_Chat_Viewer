@@ -19,6 +19,8 @@ from src.parser import (
     strip_annotations,
     get_attachment_filename,
     format_message,
+    resolve_quote_target_id,
+    process_chat_reactions,
 )
 from src.stats import compute_stats, render_stats_html
 from src.user_detector import resolve_me_user
@@ -119,6 +121,38 @@ def render_attachment(filename: str, media_dir: str, output_dir: str = "") -> st
     if filename.lower().endswith(".pdf"):
         return f'<a href="{esc_filepath}" target="_blank">📄 {html.escape(filename)}</a>'
     return f'<a href="{esc_filepath}">📎 {html.escape(filename)}</a>'
+
+
+def render_reactions_html(reactions: list[dict], msg_id: str) -> str:
+    """Render the HTML for reaction badges on a message bubble."""
+    if not reactions:
+        return f'<div class="wa-reactions-container" data-msg-id="{msg_id}"></div>'
+
+    grouped: dict[str, list[str]] = {}
+    for r in reactions:
+        emoji = r.get("emoji", "")
+        if not emoji:
+            continue
+        sender = r.get("sender", "")
+        grouped.setdefault(emoji, []).append(sender)
+
+    pills = []
+    for emoji, senders in grouped.items():
+        senders_clean = [s for s in senders if s]
+        count = len(senders)
+        tooltip = f"{', '.join(senders_clean)}: {emoji}" if senders_clean else emoji
+        esc_tooltip = html.escape(tooltip, quote=True)
+        esc_emoji = html.escape(emoji)
+        pills.append(
+            f'<span class="wa-reaction-pill" data-emoji="{esc_emoji}" title="{esc_tooltip}">'
+            f'<span class="wa-reaction-emoji">{esc_emoji}</span>'
+            f'<span class="wa-reaction-count">{count}</span>'
+            f'</span>'
+        )
+
+    return f'<div class="wa-reactions-container" data-msg-id="{msg_id}">{"".join(pills)}</div>'
+
+
 
 
 
@@ -225,6 +259,7 @@ def render_grouped_messages(
     if not messages:
         return "", [], ("", "")
 
+    messages = process_chat_reactions(messages)
     grouped_html: list[str] = []
     attendees = list(dict.fromkeys(msg["sender"] for msg in messages))
     start_date = messages[0]["date"]
@@ -288,6 +323,11 @@ def render_grouped_messages(
             if is_system_message(cur["content"]):
                 break
 
+            # Skip standalone reaction events whose reactions are attached to target messages
+            if cur.get("is_reaction_event"):
+                i += 1
+                continue
+
             clean_content, was_edited = strip_annotations(cur["content"])
             filename = get_attachment_filename(clean_content)
             has_file = filename is not None
@@ -309,7 +349,8 @@ def render_grouped_messages(
             else:
                 if URL_PATTERN.search(clean_content):
                     sub_media_type = "link"
-                content_html = format_message(clean_content).replace("\n", "<br>")
+                quote_target = resolve_quote_target_id(messages, i, clean_content)
+                content_html = format_message(clean_content, quote_target_id=quote_target)
 
             if sub_media_type:
                 group_media_types.add(sub_media_type)
@@ -321,13 +362,22 @@ def render_grouped_messages(
             sub_class = f"with-file{type_class}" if has_file else (type_class.strip())
             type_attr = f' data-media-type="{sub_media_type}"' if sub_media_type else ""
 
+            reactions_html = render_reactions_html(cur.get("reactions", []), msg_id=f"msg-{i}")
+            react_btn_html = (
+                f'<button type="button" class="wa-react-btn" title="Réagir" '
+                f'aria-label="Réagir au message" data-msg-id="msg-{i}"><span>😊</span></button>'
+            )
+
             group_texts.append(
                 f'<div class="sub-message {sub_class}" id="msg-{i}"{type_attr}>'
                 f'<div class="text">{content_html}</div>'
                 f'<div class="time">{time_display}{edited_badge}{status_check}</div>'
+                f'{reactions_html}'
+                f'{react_btn_html}'
                 f'</div>'
             )
             i += 1
+
 
         if group_texts:
             month_val = last_day[:7] if last_day else ""

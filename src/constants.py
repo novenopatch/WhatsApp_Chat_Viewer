@@ -65,3 +65,38 @@ MEDIA_TYPE_MAP = {
     "GIF": "🎞️ GIF",
     "DOCUMENT": "📄 Document",
 }
+
+# Quotes & Reactions patterns
+QUOTE_LINE_PATTERN = re.compile(r"^>\s?(.*)$")
+QUOTE_AUTHOR_PATTERN = re.compile(r"^(?:\[([^\]]+)\]|([^:]+)):\s*(.*)$")
+
+EMOJI_PATTERN = re.compile(r"[\U00010000-\U0010ffff\u2600-\u27bf\u2300-\u23ff\u2b50\u2b06\ufe0f\u200d]+")
+
+REACTION_LINE_PATTERN = re.compile(
+    r"^(?:(?:a réagi (?:par|avec)?\s*|reacted (?:with)?\s*)?"
+    r"([\U00010000-\U0010ffff\u2600-\u27bf\u2300-\u23ff\u2b50\u2b06\ufe0f\u200d]+)"
+    r"\s*(?:à|to)\s*[\"“](.+?)[\"”]\s*)$",
+    re.IGNORECASE | re.UNICODE,
+)
+
+TRAILING_REACTION_PATTERN = re.compile(
+    r"\s*(?:\[(?:Reactions?|Réactions?):\s*([^\]]+)\]"
+    r"|\[([\U00010000-\U0010ffff\u2600-\u27bf\u2300-\u23ff\u2b50\u2b06\ufe0f\u200d\s,]+)\]"
+    r"|\(([\U00010000-\U0010ffff\u2600-\u27bf\u2300-\u23ff\u2b50\u2b06\ufe0f\u200d\s,]+)\))\s*$",
+    re.IGNORECASE | re.UNICODE,
+)
+
+DEFAULT_REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
+
+# ZIP security limits (Zip bomb / DoS protection)
+DEFAULT_MAX_ZIP_FILES = 50_000
+DEFAULT_MAX_UNCOMPRESSED_SIZE = 10 * 1024 * 1024 * 1024  # 10 GiB
+DEFAULT_MAX_COMPRESSION_RATIO = 100.0  # Alert if ratio > 100 on files > 10 MiB
+DEFAULT_MIN_RATIO_THRESHOLD = 50 * 1024 * 1024  # 50 MiB threshold before ratio guards trigger
+WINDOWS_RESERVED_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+}
+
+

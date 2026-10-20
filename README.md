@@ -21,6 +21,14 @@ Convertisseur d'exports WhatsApp (`.txt` + dossier médias) en visualiseur HTML 
   - Palette officielle WhatsApp Dark : fond `#111b21`, bulles reçues `#202c33`, bulles envoyées `#005c4b`.
 - **Notes vocales & Audios avec sélecteur de vitesse** :
   - Bouton de vitesse intégré sur les notes vocales (`.opus`, `.mp3`, etc.) permettant de basculer en un clic entre **1x**, **1.5x** et **2x**, comme sur l'application WhatsApp.
+- **Messages cités & Réponses (Quotes / Citations)** :
+  - Support de la syntaxe officielle WhatsApp (`> `) avec ou sans mention d'auteur (`> Auteur: texte`).
+  - Boîte de citation stylisée authentique avec barre d'accentuation colorée, fond contrasté et texte d'aperçu.
+  - **Navigation instantanée** : un clic sur une citation fait défiler la conversation jusqu'au message d'origine avec animation d'impulsion (`jump-pulse`).
+- **Réactions Emojis WhatsApp (badges & picker interactif)** :
+  - Détection automatique et absorption des réactions depuis les exports (`❤️ to "..."`, `a réagi par 👍 à "..."`, tags `[❤️]`, etc.) directement rattachées sous forme de badges sous les bulles cibles.
+  - **Barre de réactions interactive intégrée** : au survol d'un message, un bouton smiley `😊` permet d'ouvrir la capsule officielle flottante (`👍 ❤️ 😂 😮 😢 🙏`) pour réagir en direct avec persistance dans le `localStorage` du navigateur.
+  - Tooltip dynamique indiquant qui a réagi et décompte par emoji.
 - **Bulles groupées et adaptatives** : regroupement consécutif par participant, palette de couleurs automatique pour chaque interlocuteur (idéal en duo ou en conversation de groupe).
 - **Support complet des médias** :
   - Images (lightbox intégrée avec navigation clavier et boutons précédent / suivant)
@@ -28,7 +36,7 @@ Convertisseur d'exports WhatsApp (`.txt` + dossier médias) en visualiseur HTML 
   - Notes vocales et audios (`.opus`, `.mp3`, `.m4a`, etc.) avec réglage de vitesse
   - Stickers (`.webp`) stylisés
   - Documents (`.pdf`, etc.)
-- **Formatage WhatsApp** : support du texte brut enrichi WhatsApp (`*gras*`, `_italique_`, `~barré~`, `monospace`, blocs de code ` ``` `).
+- **Formatage WhatsApp** : support du texte brut enrichi WhatsApp (`*gras*`, `_italique_`, `~barré~`, `monospace`, blocs de code ` ``` `, citations `> `).
 - **Liens et annotations** : URLs cliquables (`target="_blank"`), détection des messages modifiés (`modifié`).
 - **Messages système & événements** : rendu centré sous forme de pill stylisée (appels vocaux/vidéo/groupe, notifications de chiffrement, messages supprimés, etc.).
 - **Recherche interactive & navigation** :
@@ -52,6 +60,7 @@ Le projet est structuré de façon modulaire et maintenable :
 whatsapp_chat_viewer/
 ├── build.py                # Point d'entrée CLI principal (rétro-compatible)
 ├── src/
+│   ├── zip_handler.py      # Extraction sécurisée des archives .zip (anti-Zip Slip & anti-bombe ZIP)
 │   ├── parser.py           # Parsing des fichiers WhatsApp, dates, markdown et annotations
 │   ├── stats.py            # Calculs statistiques et génération du rapport
 │   ├── config.py           # Chargement de la configuration (CLI, .env, defaults, prompt)
@@ -62,6 +71,7 @@ whatsapp_chat_viewer/
 │       ├── style.css       # Feuilles de style (variables CSS, Dark Mode, responsive)
 │       └── app.js          # Moteur JS haute performance (recherche debouncée, audio, lightbox)
 ├── tests/                  # Suite de tests unitaires complète
+│   ├── test_zip_handler.py
 │   ├── test_parser.py
 │   ├── test_stats.py
 │   ├── test_config.py
@@ -77,7 +87,13 @@ whatsapp_chat_viewer/
 ### 1. En ligne de commande (recommandé)
 
 ```bash
-# Pointer directement vers un dossier d'export WhatsApp complet
+# 📦 Exploiter directement une archive ZIP générée par WhatsApp (iOS ou Android)
+python3 build.py mon_export.zip
+
+# Ou avec options spécifiques
+python3 build.py --zip mon_export.zip --output ma_conversation.html --me "Mon Nom"
+
+# Pointer vers un dossier d'export WhatsApp déjà extrait
 python3 build.py --dir /chemin/vers/WhatsApp_Export/
 
 # Ou spécifier les chemins individuellement
@@ -85,11 +101,15 @@ python3 build.py --chat /chemin/vers/_chat.txt --media /chemin/vers/media/ --out
 ```
 
 Options disponibles (`python3 build.py --help`) :
+- `input_target` : fichier `.zip`, `.txt` ou dossier d'export WhatsApp passé directement en argument
+- `-z, --zip FILE` : archive `.zip` d'export WhatsApp (auto-extraction sécurisée et détection de la discussion)
+- `--extract-dir DIR` : dossier cible pour l'extraction du zip (défaut : dossier au nom de l'archive)
 - `-d, --dir DIR` : dossier d'export WhatsApp (détecte automatiquement le fichier `.txt` et le dossier `media/`)
 - `-c, --chat FILE` : chemin vers le fichier de discussion `.txt`
 - `-m, --media DIR` : dossier contenant les médias
 - `-o, --output FILE` : chemin du fichier HTML produit (défaut : `output.html`)
 - `--me, --your-name NAME` : votre nom ou pseudo dans la conversation (place vos messages à droite sur fond vert)
+- `--thumbs` : génère des miniatures optimisées pour accélérer le chargement initial
 
 ---
 

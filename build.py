@@ -19,6 +19,12 @@ from src.constants import (
     SYSTEM_MESSAGE_PATTERN,
     SYSTEM_ICONS,
     MEDIA_TYPE_MAP,
+    QUOTE_LINE_PATTERN,
+    QUOTE_AUTHOR_PATTERN,
+    EMOJI_PATTERN,
+    REACTION_LINE_PATTERN,
+    TRAILING_REACTION_PATTERN,
+    DEFAULT_REACTION_EMOJIS,
 )
 from src.parser import (
     parse_date,
@@ -27,10 +33,15 @@ from src.parser import (
     is_system_message,
     get_system_icon,
     get_media_type_label,
+    format_inline_markdown,
     format_message,
     strip_annotations,
     iter_chat,
     parse_chat,
+    parse_reaction_notification,
+    extract_trailing_reactions,
+    resolve_quote_target_id,
+    process_chat_reactions,
 )
 from src.stats import (
     compute_stats,
@@ -43,6 +54,7 @@ from src.user_detector import (
 from src.renderer import (
     render_attachment,
     build_bubble as _build_bubble,
+    render_reactions_html,
     render_grouped_messages,
     build_html,
     minify_html,
@@ -54,6 +66,11 @@ from src.config import (
     prompt_user as _prompt,
     parse_args,
     load_config,
+)
+from src.zip_handler import (
+    extract_whatsapp_zip,
+    is_zip_file,
+    safe_extract_zip,
 )
 
 
