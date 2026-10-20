@@ -1,204 +1,218 @@
 # WhatsApp Chat Viewer
 
+<div align="center">
+
+[![CI](https://github.com/BlueTechTG/whatsapp-chat-viewer/actions/workflows/ci.yml/badge.svg)](https://github.com/BlueTechTG/whatsapp-chat-viewer/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-1.4.0-brightgreen.svg)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](requirements.txt)
-[![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Framework: Standard Library](https://img.shields.io/badge/framework-standard_library-orange.svg)](#)
 
-Convertisseur d'exports WhatsApp (`.txt` ou archive `.zip` + dossier médias) en visualiseur HTML interactif, moderne, autonome, fluide et ultra-performant.
+**Convert WhatsApp chat exports (`.zip` archives or `.txt` + media folders) into an interactive, modern, responsive, and blazing-fast HTML viewer.**
 
----
+[English](README.md) | [Français](README.fr.md)
 
-## 🚀 Fonctionnalités
-
-- **Performances & Fluidité (optimisé pour les gros exports de dizaines de milliers de messages)** :
-  - Rendu CSS optimisé avec `content-visibility: auto` (seuls les messages visibles sont calculés par le moteur de rendu, fluidité garantie à 60/120 fps).
-  - Moteur de recherche JavaScript non-destructif avec **debounce** (200ms) évitant tout gel du navigateur.
-  - Chargement asynchrone et différé (`loading="lazy"`, `decoding="async"`, `preload="none"`) sur l'ensemble des médias.
-  - Rendu propre pour impression (`@media print`).
-- **Différenciation "Moi" vs "Autres" (Bulles droite / gauche)** :
-  - Vos messages sont alignés à droite avec la couleur verte WhatsApp (`#d9fdd3` en mode clair, `#005c4b` en mode sombre).
-  - Les messages reçus sont alignés à gauche sur fond blanc (`#ffffff` en mode clair, `#202c33` en mode sombre) avec avatar et nom coloré.
-  - Configuration facile via `--me` / `--your-name` ou variable `ME` dans `.env`, détection automatique intelligente, et **sélecteur interactif dans le header** pour changer d'interlocuteur à la volée sans recharger la page.
-- **Mode Sombre officiel WhatsApp (Dark Mode)** :
-  - Détection automatique du thème système (`prefers-color-scheme: dark`) avec mémorisation de votre choix (`localStorage`).
-  - Bouton switch interactif ☀️/🌙 dans la barre supérieure.
-  - Palette officielle WhatsApp Dark : fond `#111b21`, bulles reçues `#202c33`, bulles envoyées `#005c4b`.
-- **Notes vocales & Audios avec sélecteur de vitesse** :
-  - Bouton de vitesse intégré sur les notes vocales (`.opus`, `.mp3`, etc.) permettant de basculer en un clic entre **1x**, **1.5x** et **2x**, comme sur l'application WhatsApp.
-- **Messages cités & Réponses (Quotes / Citations)** :
-  - Support de la syntaxe officielle WhatsApp (`> `) avec ou sans mention d'auteur (`> Auteur: texte`).
-  - Boîte de citation stylisée authentique avec barre d'accentuation colorée, fond contrasté et texte d'aperçu.
-  - **Navigation instantanée** : un clic sur une citation fait défiler la conversation jusqu'au message d'origine avec animation d'impulsion (`jump-pulse`).
-- **Réactions Emojis WhatsApp (badges & picker interactif)** :
-  - Détection automatique et absorption des réactions depuis les exports (`❤️ to "..."`, `a réagi par 👍 à "..."`, tags `[❤️]`, etc.) directement rattachées sous forme de badges sous les bulles cibles.
-  - **Barre de réactions interactive intégrée** : au survol d'un message, un bouton smiley `😊` permet d'ouvrir la capsule officielle flottante (`👍 ❤️ 😂 😮 😢 🙏`) pour réagir en direct avec persistance dans le `localStorage` du navigateur.
-  - Tooltip dynamique indiquant qui a réagi et décompte par emoji.
-- **Bulles groupées et adaptatives** : regroupement consécutif par participant, palette de couleurs automatique pour chaque interlocuteur (idéal en duo ou en conversation de groupe).
-- **Support complet des médias** :
-  - Images (lightbox intégrée avec navigation clavier et boutons précédent / suivant)
-  - Vidéos (`.mp4`, `.mov`, `.3gp`)
-  - Notes vocales et audios (`.opus`, `.mp3`, `.m4a`, etc.) avec réglage de vitesse
-  - Stickers (`.webp`) stylisés
-  - Documents (`.pdf`, etc.)
-- **Formatage WhatsApp** : support du texte brut enrichi WhatsApp (`*gras*`, `_italique_`, `~barré~`, `monospace`, blocs de code ` ``` `, citations `> `).
-- **Liens et annotations** : URLs cliquables (`target="_blank"`), détection des messages modifiés (`modifié`).
-- **Messages système & événements** : rendu centré sous forme de pill stylisée (appels vocaux/vidéo/groupe, notifications de chiffrement, messages supprimés, etc.).
-- **Recherche interactive & navigation** :
-  - Surlignage temps réel fluide
-  - Navigation résultat par résultat avec les touches `Entrée` / `Shift+Entrée` ou les boutons haut/bas
-  - Touche `Échap` pour réinitialiser
-- **Boutons de défilement rapide** : retour en haut et saut en bas de conversation.
-- **Section Statistiques détaillée** (pliable) :
-  - Répartition des messages par participant (% et barres colorées)
-  - Histogramme d'activité heure par heure (0h-23h)
-  - Décompte des types de médias
-  - Jour le plus actif et moyennes quotidiennes
+</div>
 
 ---
 
-## 🏗️ Architecture du projet
+## ⚡ Highlights
 
-Le projet est structuré de façon modulaire et maintenable :
+* **Zero Heavy Frameworks**: Powered entirely by the Python 3 standard library and vanilla JavaScript. No Node.js, Flask, Django, or heavy bundles required.
+* **Large Archive Ready**: Tested on massive exports (**1.74+ GB, 4,400+ media files**) with chunked streaming directly to disk — no RAM exhaustion or system freezes.
+* **Dual Execution Modes**:
+  * **Local Web Interface (`--serve`)**: Modern Drag & Drop UI with real-time decompression progress and metrics.
+  * **Command-Line Interface (CLI)**: Automate conversions and CI/CD pipelines.
+* **Single-File Standalone Mode**: Embed all images, stickers, and audio notes directly into a single self-contained HTML file in Base64 for easy archiving and sharing.
+* **Authentic WhatsApp Web Experience**: Dark/Light modes, reply quotes with instant jump animations, reaction badges with interactive picker, audio notes with 1x/1.5x/2x speed controls, media lightbox, full gallery tab, participant analytics, and instant full-text search.
+* **Publication-Ready Print & PDF Export**: Dedicated `@media print` layout with clean page breaks, document header, and page numbering.
+* **Multi-Language**: Interface supports English and French (`--lang en|fr|auto`).
+* **Hardened Security**: Protected against Zip Slip directory traversal, Zip bombs, and spoofed archives.
 
-```
+---
+
+## 🚀 Key Features
+
+### 🎨 Faithful WhatsApp Web Interface
+- **Participant Separation ("Me" vs "Others")**: Sent messages align to the right with WhatsApp green bubbles (`#d9fdd3` / `#005c4b`); received messages align to the left on clean white/dark backgrounds with colored author names.
+- **Dynamic "Me" Switcher**: Change the active persona directly from the header dropdown without reloading.
+- **Official Dark Mode**: Automatic system preference detection (`prefers-color-scheme: dark`) with manual toggle switch and `localStorage` persistence.
+- **Voice Notes & Audio Player**: Inline speed selector (**1x**, **1.5x**, **2x**) and seek bar for `.opus`, `.ogg`, `.mp3`, `.m4a` files.
+- **Quoted Messages & Replies**: Authentic quote boxes with colored accent bars. Clicking a quote smoothly scrolls directly to the original message with an attention pulse.
+- **Emoji Reactions**: Automatic detection and grouping of reactions (`👍 ❤️ 😂 😮 😢 🙏`). Hover over messages to open the floating reaction picker with live local state.
+- **Media Lightbox & Gallery**:
+  - Full-screen viewer for photos and videos with zoom controls and keyboard navigation (`←` / `→` / `Esc`).
+  - Tabbed media gallery drawer (Photos, Audios, Documents, Links).
+
+### ⚡ Blazing Performance
+- **Streaming Uploads & Range Requests**: Uploads are processed in 1 MB chunks to physical disk storage, keeping server RAM below 45 MB. Media files support `Accept-Ranges: bytes` (HTTP 206) for instant audio/video scrubbing.
+- **Thumbnail Optimization (`--thumbs`)**: Parallel image scaling via ThreadPool to keep scrolling silky smooth at 60/120 fps.
+- **CSS `content-visibility: auto`**: Browser rendering calculates only messages in the visible viewport.
+- **Zero-DOM Worker Search**: Non-blocking client-side search with 200ms debounce and navigation keys (`Enter` / `Shift+Enter`).
+- **Comprehensive Analytics**: Collapsible dashboard showing message breakdown per participant, 24-hour activity heatmaps, media counts, and busiest days.
+
+---
+
+## 🏗️ Project Architecture
+
+```text
 whatsapp_chat_viewer/
-├── build.py                # Point d'entrée CLI principal (rétro-compatible)
+├── build.py                # Main CLI entry point & CLI parser
 ├── src/
-│   ├── zip_handler.py      # Extraction sécurisée des archives .zip (anti-Zip Slip & anti-bombe ZIP)
-│   ├── parser.py           # Parsing des fichiers WhatsApp, dates, markdown et annotations
-│   ├── stats.py            # Calculs statistiques et génération du rapport
-│   ├── config.py           # Chargement de la configuration (CLI, .env, defaults, prompt)
-│   ├── user_detector.py    # Détection et résolution automatique de l'expéditeur "Moi"
-│   ├── renderer.py         # Assemblage du visualiseur HTML
+│   ├── config.py           # Configuration loader (CLI args, .env, defaults, prompts)
+│   ├── constants.py        # Regex patterns, media maps, avatar colors
+│   ├── i18n.py             # Internationalization (English & French strings)
+│   ├── monitor.py          # Process memory (RSS/Peak) and CPU performance tracking
+│   ├── parser.py           # WhatsApp chat line parser, markdown, dates, reactions
+│   ├── renderer.py         # HTML assembly, Base64 encoder, thumbnail generator
+│   ├── server.py           # Lightweight HTTP server with streaming upload & range requests
+│   ├── stats.py            # Chat statistics and analytics generator
+│   ├── user_detector.py    # Automatic "Me" sender detection heuristics
+│   ├── zip_handler.py      # Hardened ZIP extraction & Zip Slip/Bomb validation
 │   └── templates/
-│       ├── base.html       # Squelette HTML
-│       ├── style.css       # Feuilles de style (variables CSS, Dark Mode, responsive)
-│       └── app.js          # Moteur JS haute performance (recherche debouncée, audio, lightbox)
-├── tests/                  # Suite de tests unitaires complète
-│   ├── test_zip_handler.py
-│   ├── test_parser.py
-│   ├── test_stats.py
-│   ├── test_config.py
-│   └── test_renderer.py
-└── .github/workflows/      # Intégration continue (CI)
-    └── ci.yml
+│       ├── base.html       # HTML layout template
+│       ├── style.css       # Responsive styling & official WhatsApp palettes
+│       ├── app.js          # Client-side logic (audio player, lightbox, search, reactions)
+│       └── server_index.html # Drag & Drop local web server UI
+├── tests/                  # 150+ unit and integration tests
+├── .env.example            # Environment configuration template
+├── CONTRIBUTING.md         # Contribution guidelines
+├── CODE_OF_CONDUCT.md      # Contributor Covenant Code of Conduct
+├── SECURITY.md             # Security policy & vulnerability reporting
+└── LICENSE                 # MIT License
 ```
 
 ---
 
-## 🛠️ Installation & Utilisation
+## 🛠️ Quick Start
 
-### 0. Prérequis & Installation
+### 1. Requirements
 
-Le projet fonctionne nativement avec la bibliothèque standard Python 3 (Python >= 3.10) sans dépendance obligatoire.
+* **Python 3.10+** (Python 3.10, 3.11, 3.12, 3.13, 3.14).
+* Optional dependencies for image thumbnails and `.env` loading:
+  ```bash
+  pip install -r requirements.txt
+  ```
 
-Pour bénéficier de l'accélération des images et de la génération des miniatures (`--thumbs`) :
+---
+
+### 2. Web Drag & Drop Mode (Recommended)
+
+Start the local server and open the web interface:
+
 ```bash
-pip install -r requirements.txt
-```
-
-### 1. Mode Serveur Web Drag & Drop (Le plus simple)
-
-Pour visualiser et convertir une archive sans aucune ligne de commande complexe :
-```bash
+# Start server on default port 8080
 python3 build.py --serve
 
-# Avec mode verbeux (RAM RSS, CPU user, décompression) et mode Ultra-Performance :
+# With verbose resource tracking and Ultra-Performance mode:
 python3 build.py --serve -v --ultra-perf
 ```
-* Ouvre automatiquement votre navigateur sur `http://127.0.0.1:8080`.
-* Glissez-déposez simplement votre archive `.zip` WhatsApp.
-* Suivi en temps réel de la **décompression** et des ressources (barre de progression, RAM RSS, CPU utilisateur).
-* Visualisez le chat instantanément ou téléchargez le fichier HTML généré !
+
+1. Open your browser at `http://127.0.0.1:8080`.
+2. Drag and drop your WhatsApp `.zip` export.
+3. Monitor real-time extraction progress and system metrics.
+4. Click **View Conversation** or download the generated HTML!
 
 ---
 
-### 2. En ligne de commande (CLI)
+### 3. Command-Line Interface (CLI)
 
 ```bash
-# 📦 Exploiter directement une archive ZIP générée par WhatsApp (iOS ou Android)
-python3 build.py mon_export.zip
+# 📦 Convert directly from a WhatsApp ZIP export (iOS or Android)
+python3 build.py my_export.zip
 
-# 📄 Générer un fichier HTML UNIQUE autonome (Standalone - photos & audios en Base64)
-python3 build.py mon_export.zip --standalone -o chat_autonome.html
+# 📄 Produce a single 100% self-contained standalone HTML file
+python3 build.py my_export.zip --standalone -o standalone_chat.html
 
-# Ou avec options spécifiques
-python3 build.py --zip mon_export.zip --output ma_conversation.html --me "Mon Nom"
+# 🎯 Specify output, your name, language, and thumbnail generation
+python3 build.py --zip export.zip --output chat.html --me "Alice" --lang en --thumbs
 
-# Pointer vers un dossier d'export WhatsApp déjà extrait
-python3 build.py --dir /chemin/vers/WhatsApp_Export/
+# 📁 Convert from an already extracted folder
+python3 build.py --dir /path/to/extracted_folder/
 
-# Ou spécifier les chemins individuellement
-python3 build.py --chat /chemin/vers/_chat.txt --media /chemin/vers/media/ --output ma_conversation.html --me "Mon Nom"
+# ⚙️ Point to chat text and media directory manually
+python3 build.py --chat chat.txt --media media/ --output chat.html
 ```
 
-Options disponibles (`python3 build.py --help`) :
-- `input_target` : fichier `.zip`, `.txt` ou dossier d'export WhatsApp passé directement en argument
-- `--serve` : lance l'interface Web locale avec Drag & Drop (port par défaut : 8080)
-- `--port PORT` : port pour le serveur Web (défaut : 8080)
-- `--host HOST` : hôte d'écoute pour le serveur Web (défaut : 127.0.0.1)
-- `--standalone, --embed` : intègre les images, stickers et audios en Base64 pour obtenir **un seul fichier HTML 100% autonome** transportable par email ou clé USB
-- `--max-embed-size MB` : taille maximale en Mo par média intégré en standalone (défaut : 20 Mo)
-- `-z, --zip FILE` : archive `.zip` d'export WhatsApp (auto-extraction sécurisée et détection de la discussion)
-- `--extract-dir DIR` : dossier cible pour l'extraction du zip (défaut : dossier au nom de l'archive)
-- `-d, --dir DIR` : dossier d'export WhatsApp (détecte automatiquement le fichier `.txt` et le dossier `media/`)
-- `-c, --chat FILE` : chemin vers le fichier de discussion `.txt`
-- `-m, --media DIR` : dossier contenant les médias
-- `-o, --output FILE` : chemin du fichier HTML produit (défaut : `output.html`)
-- `--me, --your-name NAME` : votre nom ou pseudo dans la conversation (place vos messages à droite sur fond vert)
-- `-l, --lang {auto,en,fr}` : langue de l'interface (`auto` par défaut selon la langue du système, ou forcé à `en` / `fr`)
-- `--thumbs` : génère des miniatures optimisées pour accélérer le chargement initial
-- `-v, --verbose` : mode verbeux affichant le suivi détaillé de l'extraction, la RAM (RSS) et le temps CPU utilisateur
-- `--ultra-perf, --fast` : mode ultra-performance (décompression turbo en chunks 1 Mo, parsing accéléré, encodage Base64 mis en cache)
+#### CLI Options Reference
+
+| Option | Shorthand | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `input_target` | | Positional path to `.zip`, `.txt` file, or export directory | None |
+| `--serve` | | Start the local Drag & Drop web server | `False` |
+| `--port` | | Port for the web server | `8080` |
+| `--host` | | Host for the web server | `127.0.0.1` |
+| `--standalone` | `--embed` | Embed images, audio, and stickers in Base64 | `False` |
+| `--max-embed-size` | | Max file size in MB per embedded media in standalone | `20` |
+| `--zip` | `-z` | Path to WhatsApp export `.zip` file | None |
+| `--extract-dir` | | Target folder for ZIP extraction | Archive name |
+| `--dir` | `-d` | Path to extracted WhatsApp folder | None |
+| `--chat` | `-c` | Path to `_chat.txt` or `chat.txt` file | None |
+| `--media` | `-m` | Path to media directory | Alongside chat |
+| `--output` | `-o` | Output HTML destination path | `output.html` |
+| `--me` | `--your-name`| Your name / handle in the chat (green right-hand bubbles) | Auto-detected |
+| `--lang` | `-l` | Interface language (`auto`, `en`, `fr`) | `auto` |
+| `--thumbs` | | Generate optimized image thumbnails for faster initial load | `False` |
+| `--verbose` | `-v` | Verbose logging with RAM RSS and CPU usage | `False` |
+| `--ultra-perf` | `--fast` | Turbo decompression (1 MB chunks) and optimized encoding | `False` |
 
 ---
 
-### 3. Impression et Export PDF paginé
+### 4. Configuration via `.env`
 
-Le visualiseur intègre une feuille de style d'impression publication-ready (`@media print`) :
-* Bouton `🖨️` dédié dans la barre supérieure (ou raccourci clavier `Ctrl+P` / `Cmd+P`).
-* **Pagination propre** : aucun découpage de bulle de message ou d'image au milieu d'une page (`break-inside: avoid`).
-* **En-tête de document** élégant reprenant les participants, la date et le nombre de messages.
-* Masquage automatique des éléments interactifs (recherche, menus, boutons, audio players).
-* Numérotation des pages automatique en pied de page.
+Copy [`.env.example`](.env.example) to `.env` to define defaults without passing CLI flags:
 
----
-
-### 4. Via fichier `.env`
-
-Copiez [`.env.example`](.env.example) vers `.env` et adaptez les chemins :
-
-```env
-CHAT_DIR=/chemin/vers/WhatsApp_Export/
-OUTPUT_FILE=output.html
-ME="Mon Nom"
-LANG=auto   # 'auto' (défaut système), 'en' ou 'fr'
+```ini
+ZIP_FILE=/path/to/WhatsApp_Export.zip
+OUTPUT_FILE=my_chat.html
+ME="My Name"
+LANG=en
+MAX_UNCOMPRESSED_SIZE=10737418240
 ```
 
-Puis lancez simplement :
+Run with zero arguments:
 ```bash
 python3 build.py
 ```
 
 ---
 
-### 3. Mode interactif
+## 🔒 Security Architecture
 
-Si aucun argument CLI ni fichier `.env` n'est détecté et que `chat.txt` n'est pas dans le dossier courant, le script vous demandera simplement les chemins avec autocomplétion (touche `<Tab>`).
+WhatsApp Chat Viewer is built with defensive defaults to safely process untrusted archives:
+* **Anti-Zip Slip**: Path sanitization blocks `../` directory escapes and path traversals.
+* **Symlink Prohibition**: Rejects symbolic links and device nodes embedded in archives.
+* **Quota Guards**: Hard limits on file counts (`MAX_ZIP_FILES=50000`) and uncompressed size (`MAX_UNCOMPRESSED_SIZE=10GB`).
+* **Streaming Guards**: Decompression enforces byte quotas on-the-fly and rolls back partial writes immediately upon violation.
+* **HTML Sanitization**: All messages and participant names are escaped to prevent cross-site scripting (XSS).
+
+See [SECURITY.md](SECURITY.md) for full details and vulnerability reporting guidelines.
 
 ---
 
-## 🧪 Tests unitaires
+## 🧪 Testing
 
-Une suite de tests unitaires intégrée valide l'ensemble des modules (parser, statistiques, configuration, détection et rendu HTML) :
+The test suite covers parser heuristics, golden regression tests, security boundaries, stats calculations, and web server operations:
 
 ```bash
+# Run all 150+ tests
 python3 -m unittest discover -s tests -v
+
+# Run with coverage (optional)
+pip install coverage
+coverage run -m unittest discover -s tests
+coverage report -m
 ```
 
 ---
 
-## 📜 Versionnement & Notes de version
+## 🤝 Contributing
 
-Ce projet suit le [Versionnement Sémantique (SemVer)](https://semver.org/lang/fr/). Pour consulter l'historique complet des versions, les fonctionnalités ajoutées et les correctifs, consultez le fichier [CHANGELOG.md](CHANGELOG.md).
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md) before opening a pull request.
 
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
+Copyright (c) 2024-2026 BlueTechTG.
