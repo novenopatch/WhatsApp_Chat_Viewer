@@ -9,6 +9,8 @@ import gzip
 import os
 import sys
 
+from src import __version__
+
 # Re-export key functions and constants for backward compatibility
 from src.constants import (
     MESSAGE_PATTERN as message_pattern,
@@ -77,6 +79,7 @@ from src.zip_handler import (
 def main() -> None:
     """Main CLI execution flow."""
     cli_args = parse_args()
+    print(f"🚀 WhatsApp Chat Viewer v{__version__}")
     if getattr(cli_args, "serve", False):
         from src.server import run_server
         run_server(host=cli_args.host, port=cli_args.port)

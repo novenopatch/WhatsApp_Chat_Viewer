@@ -1,6 +1,10 @@
 # WhatsApp Chat Viewer
 
-Convertisseur d'exports WhatsApp (`.txt` + dossier médias) en visualiseur HTML interactif, moderne, fluide et réactif.
+[![Version](https://img.shields.io/badge/version-1.4.0-brightgreen.svg)](CHANGELOG.md)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](requirements.txt)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
+
+Convertisseur d'exports WhatsApp (`.txt` ou archive `.zip` + dossier médias) en visualiseur HTML interactif, moderne, autonome, fluide et ultra-performant.
 
 ---
 
@@ -183,3 +187,10 @@ Une suite de tests unitaires intégrée valide l'ensemble des modules (parser, s
 ```bash
 python3 -m unittest discover -s tests -v
 ```
+
+---
+
+## 📜 Versionnement & Notes de version
+
+Ce projet suit le [Versionnement Sémantique (SemVer)](https://semver.org/lang/fr/). Pour consulter l'historique complet des versions, les fonctionnalités ajoutées et les correctifs, consultez le fichier [CHANGELOG.md](CHANGELOG.md).
+

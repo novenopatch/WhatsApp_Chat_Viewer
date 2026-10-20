@@ -2,6 +2,7 @@
 
 import argparse
 import os
+from src import __version__
 from src.zip_handler import is_zip_file, extract_whatsapp_zip
 
 
@@ -73,6 +74,13 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
             "Sans argument, le script lit .env puis les valeurs par défaut,\n"
             "et pose les questions manquantes de façon interactive."
         ),
+    )
+    p.add_argument(
+        "--version",
+        "-V",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Affiche le numéro de version et quitte",
     )
     p.add_argument("input_target", nargs="?", help="Fichier .zip, .txt ou dossier d'export WhatsApp")
     p.add_argument("--zip", "-z", metavar="FILE", help="Archive .zip d'export WhatsApp (auto-extraction et détection)")
