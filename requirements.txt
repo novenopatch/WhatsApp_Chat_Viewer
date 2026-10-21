@@ -8,6 +8,10 @@ python-dotenv>=0.21.0
 # Uncomment or install manually: pip install brotli
 # brotli>=1.0.9
 
+# Optional — Build standalone executables with PyInstaller
+# Install with: pip install pyinstaller
+# pyinstaller>=6.0.0
+
 # ============================================================================
 # Development Dependencies
 # ============================================================================

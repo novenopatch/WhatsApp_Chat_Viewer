@@ -7,6 +7,10 @@ __pycache__/
 # Profiling
 profile.stats
 
+# PyInstaller builds
+build/
+dist/
+
 # WhatsApp Chat Viewer files
 /media
 *.html

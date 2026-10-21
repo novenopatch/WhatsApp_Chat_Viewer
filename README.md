@@ -105,15 +105,113 @@
 
 ---
 
+## 📦 Building Standalone Executables
+
+### Download Pre-built Executables
+
+Pre-built executables for Windows, macOS, and Linux are available on the [GitHub Releases](https://github.com/BlueTechTG/whatsapp-chat-viewer/releases) page. Simply download the appropriate file for your platform and run it directly—no Python installation required.
+
+### Building from Source
+
+You can also build standalone executables yourself for Windows, macOS, and Linux.
+
+#### Prerequisites
+
+Install PyInstaller:
+```bash
+pip install pyinstaller
+```
+
+#### Build Instructions
+
+**Linux / macOS:**
+```bash
+# Make the build script executable
+chmod +x build_exe.sh
+
+# Run the build script
+./build_exe.sh
+```
+
+**Windows:**
+```cmd
+# Run the build script
+build_exe.bat
+```
+
+**Manual build (all platforms):**
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Build single-file executable (recommended for distribution)
+pyinstaller --onefile whatsapp_chat_viewer.spec
+```
+
+The executable will be created in the `dist/` directory:
+- **Linux/macOS**: `dist/whatsapp-chat-viewer`
+- **Windows**: `dist/whatsapp-chat-viewer.exe`
+
+#### Usage
+
+Run the executable like the Python script:
+```bash
+# Linux/macOS
+./dist/whatsapp-chat-viewer my_export.zip
+
+# Windows
+dist\whatsapp-chat-viewer.exe my_export.zip
+
+# Start the web server
+./dist/whatsapp-chat-viewer --serve
+```
+
+#### Build Options
+
+**Directory-based executable (faster startup, larger size):**
+```bash
+pyinstaller whatsapp_chat_viewer.spec
+```
+
+**Without UPX compression (faster build, larger size):**
+```bash
+pyinstaller --noupx whatsapp_chat_viewer.spec
+```
+
+**With custom icon:**
+Edit `whatsapp_chat_viewer.spec` and set `icon='path/to/icon.ico'` (Windows) or `icon='path/to/icon.icns'` (macOS).
+
+#### Automated CI/CD Builds
+
+The project includes a GitHub Actions workflow (`.github/workflows/build-exe.yml`) that automatically builds executables for all platforms when you push a version tag:
+
+```bash
+# Tag a new version
+git tag v1.5.0
+git push origin v1.5.0
+```
+
+This will trigger the build workflow and create a GitHub Release with pre-built executables for:
+- `whatsapp-chat-viewer-linux` (Linux executable)
+- `whatsapp-chat-viewer-macos` (macOS executable)
+- `whatsapp-chat-viewer-windows.exe` (Windows executable)
+
+---
+
 ## 🏗️ Project Architecture
 
 ```text
 whatsapp_chat_viewer/
 ├── build.py                # Main CLI entry point & CLI parser
+├── whatsapp_chat_viewer.spec  # PyInstaller configuration for standalone executables
+├── build_exe.sh            # Build script for Linux/macOS
+├── build_exe.bat           # Build script for Windows
 ├── src/
 │   ├── config.py           # Configuration loader (CLI args, .env, defaults, prompts)
 │   ├── constants.py        # Regex patterns, media maps, avatar colors
+│   ├── hash_validator.py   # SHA-256 hash verification for file integrity
 │   ├── i18n.py             # Internationalization (English & French strings)
+│   ├── logging_config.py   # Structured logging configuration
 │   ├── monitor.py          # Process memory (RSS/Peak) and CPU performance tracking
 │   ├── parser.py           # WhatsApp chat line parser, markdown, dates, reactions
 │   ├── renderer.py         # HTML assembly, Base64 encoder, thumbnail generator
