@@ -31,6 +31,58 @@
 
 ---
 
+## 🎯 Cas d'usage
+
+**WhatsApp Chat Viewer** est conçu pour toute personne qui a besoin d'archiver, d'analyser ou de partager des conversations WhatsApp en dehors de l'écosystème de l'application :
+
+### Archivage personnel
+- **Préserver des conversations importantes** : Historique de relations, souvenirs familiaux, étapes de vie
+- **Sauvegarde avant changement de compte** : Changement de numéro, fermeture de compte ou migration d'appareil
+- **Stockage à long terme** : Garder les conversations en sécurité même si le compte WhatsApp est banni ou perdu
+- **Accès hors-ligne** : Lire l'historique des discussions sans connexion internet ni WhatsApp Web
+
+### Professionnel et juridique
+- **Documentation juridique** : Avocats et juristes préservant des preuves pour des affaires civiles ou pénales
+- **Sources journalistiques** : Documentation d'entretiens et enregistrements de communications avec des sources
+- **Archives professionnelles** : Discussions avec clients, décisions de projet, accords de partenariat
+- **Documentation RH** : Conversations de recrutement (avec consentement) et communications internes
+
+### Création de contenu
+- **Production média** : YouTubers, streamers et blogueurs illustrant des conversations
+- **Narration** : Mémorialistes documentant l'histoire personnelle et familiale
+- **Partage social** : Extraits de conversations soignés pour les réseaux sociaux ou présentations
+
+### Modération de groupes
+- **Archives communautaires** : Admins préservant les décisions de groupe, règles et discussions importantes
+- **Documentation de projet** : Équipes maintenant des historiques de conversations pour référence
+- **Coordination d'événements** : Organisateurs gardant des traces de la logistique et communications participants
+
+### Recherche et analyse
+- **Recherche académique** : Chercheurs étudiant les patterns de communication numérique
+- **Ethnographie** : Sociologues documentant les communautés en ligne
+- **Analyse de données** : Extraction d'insights à partir des patterns de messages, timing et partage de médias
+
+---
+
+## 📊 Comparaison
+
+| Fonctionnalité | WhatsApp Web | Export natif | Screenshots | WhatsApp Chat Viewer |
+|----------------|--------------|--------------|-------------|---------------------|
+| **Accès hors-ligne** | ❌ Nécessite internet | ✅ Oui | ✅ Oui | ✅ Oui |
+| **Recherche** | ⚠️ Limitée | ❌ Non | ❌ Non | ✅ Recherche plein texte |
+| **Design visuel** | ⚠️ UI mobile sur desktop | ❌ Texte brut | ✅ Visuel | ✅ UI moderne responsive |
+| **Intégration médias** | ✅ En ligne uniquement | ❌ Dossier séparé | ❌ Non | ✅ Intégrés ou liés |
+| **Analytics/Stats** | ❌ Aucune | ❌ Aucune | ❌ Aucune | ✅ Dashboard détaillé |
+| **Fichier autonome** | ❌ Non | ⚠️ Texte seulement | ❌ Images seulement | ✅ Fichier HTML unique |
+| **Export impression/PDF** | ❌ Médiocre | ❌ Non | ⚠️ Manuel | ✅ Publication-ready |
+| **Mode sombre** | ✅ Oui | ❌ Non | ❌ Non | ✅ Système + manuel |
+| **Validation sécurité** | ✅ Officiel | ❌ Aucune | ❌ Aucune | ✅ Protection Zip Slip/Bomb |
+| **Vérification hash** | ❌ Non | ❌ Non | ❌ Non | ✅ Intégrité SHA-256 |
+| **Coût** | Gratuit | Gratuit | Gratuit | **Gratuit & Open Source** |
+| **Multi-plateforme** | ✅ Oui | ✅ Oui | ✅ Oui | ✅ Python 3.10+ |
+
+---
+
 ## 🚀 Fonctionnalités principales
 
 ### 🎨 Interface WhatsApp Web fidèle

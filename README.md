@@ -31,6 +31,58 @@
 
 ---
 
+## 🎯 Use Cases
+
+**WhatsApp Chat Viewer** is designed for anyone who needs to archive, analyze, or share WhatsApp conversations outside the app ecosystem:
+
+### Personal Archiving
+- **Preserve important conversations**: Relationship history, family memories, life milestones
+- **Backup before account changes**: Switching phone numbers, closing accounts, or device migration
+- **Long-term storage**: Keep conversations safe even if WhatsApp account is banned or lost
+- **Offline access**: Read chat history without internet connection or WhatsApp Web
+
+### Professional & Legal
+- **Legal documentation**: Lawyers and paralegals preserving evidence for civil/criminal cases
+- **Journalistic sources**: Interview documentation and source communication records
+- **Business records**: Client discussions, project decisions, partnership agreements
+- **HR documentation**: Recruitment conversations (with consent) and internal communications
+
+### Content Creation
+- **Media production**: YouTubers, streamers, and bloggers illustrating conversations
+- **Storytelling**: Memoirists documenting personal and family histories
+- **Social sharing**: Curated conversation excerpts for social media or presentations
+
+### Group Moderation
+- **Community archives**: Admins preserving group decisions, rules, and important discussions
+- **Project documentation**: Teams maintaining conversation histories for reference
+- **Event coordination**: Event planners keeping records of logistics and attendee communications
+
+### Research & Analysis
+- **Academic research**: Researchers studying digital communication patterns
+- **Ethnography**: Social scientists documenting online communities
+- **Data analysis**: Extracting insights from message patterns, timing, and media sharing
+
+---
+
+## 📊 Comparison
+
+| Feature | WhatsApp Web | Native Export | Screenshots | WhatsApp Chat Viewer |
+|---------|--------------|--------------|-------------|---------------------|
+| **Offline access** | ❌ Requires internet | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Searchable** | ⚠️ Limited | ❌ No | ❌ No | ✅ Full-text search |
+| **Visual design** | ⚠️ Mobile UI on desktop | ❌ Raw text | ✅ Visual | ✅ Modern responsive UI |
+| **Media integration** | ✅ Online only | ❌ Separate folder | ❌ No | ✅ Embedded or linked |
+| **Analytics/Stats** | ❌ None | ❌ None | ❌ None | ✅ Detailed dashboard |
+| **Standalone file** | ❌ No | ⚠️ Text only | ❌ Images only | ✅ Single HTML file |
+| **Print/PDF export** | ❌ Poor | ❌ No | ⚠️ Manual | ✅ Publication-ready |
+| **Dark mode** | ✅ Yes | ❌ No | ❌ No | ✅ System + manual |
+| **Security validation** | ✅ Official | ❌ None | ❌ None | ✅ Zip Slip/Bomb protection |
+| **Hash verification** | ❌ No | ❌ No | ❌ No | ✅ SHA-256 integrity |
+| **Cost** | Free | Free | Free | **Free & Open Source** |
+| **Cross-platform** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Python 3.10+ |
+
+---
+
 ## 🚀 Key Features
 
 ### 🎨 Faithful WhatsApp Web Interface
