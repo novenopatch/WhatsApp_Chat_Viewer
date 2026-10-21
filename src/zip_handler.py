@@ -21,6 +21,7 @@ from src.constants import (
     DEFAULT_MIN_RATIO_THRESHOLD,
     WINDOWS_RESERVED_NAMES,
 )
+from src.hash_validator import HashRegistry, compute_sha256
 
 
 def is_zip_file(path: str | None) -> bool:
@@ -43,6 +44,7 @@ def safe_extract_zip(
     progress_callback: Any = None,
     ultra_perf: bool = False,
     check_overlap: bool | None = None,
+    hash_registry: HashRegistry | None = None,
 ) -> list[str]:
     """Safely extract all files from a ZIP archive into target_dir.
 
@@ -61,6 +63,19 @@ def safe_extract_zip(
        - Pre-flight free disk space check to prevent host storage exhaustion.
        - Real-time streaming byte and ratio guards to catch spoofed zip headers.
        - Immediate rollback/cleanup of all written files and empty folders on failure.
+
+    Args:
+        zip_path: Path to the ZIP archive to extract.
+        target_dir: Target directory for extraction.
+        max_total_size: Maximum uncompressed size in bytes (default: DEFAULT_MAX_UNCOMPRESSED_SIZE).
+        max_files: Maximum number of files in archive (default: DEFAULT_MAX_ZIP_FILES).
+        max_ratio: Maximum compression ratio (default: DEFAULT_MAX_COMPRESSION_RATIO).
+        min_ratio_threshold: Minimum size in bytes for ratio checks (default: DEFAULT_MIN_RATIO_THRESHOLD).
+        progress_callback: Optional callback for extraction progress updates.
+        ultra_perf: If True, uses 1 MiB chunks for faster extraction.
+        check_overlap: If True, enables physical overlap detection for zip bomb protection.
+        hash_registry: Optional HashRegistry instance to track SHA-256 hashes of extracted files.
+                        If provided, computes and registers hashes for all extracted files.
     """
     clean_zip = os.path.expanduser(zip_path)
     if not os.path.isfile(clean_zip):
@@ -319,6 +334,14 @@ def safe_extract_zip(
                 extracted_files.append(dest_path)
                 current_dst = None
 
+                # Register hash if hash_registry is provided
+                if hash_registry:
+                    try:
+                        file_hash = compute_sha256(dest_path)
+                        hash_registry.register(dest_path, file_hash)
+                    except Exception as e:
+                        pass
+
                 if progress_callback:
                     try:
                         progress_callback({
@@ -437,8 +460,38 @@ def extract_whatsapp_zip(
     ultra_perf: bool = False,
     verbose: bool = False,
     check_overlap: bool | None = None,
+    hash_registry: HashRegistry | None = None,
 ) -> tuple[str, str]:
-    """High-level function: extract a WhatsApp ZIP export and return (chat_file, media_dir)."""
+    """High-level function: extract a WhatsApp ZIP export and return (chat_file, media_dir).
+
+    Wrapper around safe_extract_zip() and find_chat_in_extracted() that provides
+    a convenient interface for WhatsApp ZIP exports. Handles security validation,
+    extraction, and auto-discovery of chat files.
+
+    Args:
+        zip_path: Path to the WhatsApp .zip export file.
+        extract_dir: Target directory for extraction. If None, uses zip filename without extension.
+        max_total_size: Maximum uncompressed size in bytes. If None, uses DEFAULT_MAX_UNCOMPRESSED_SIZE.
+        max_files: Maximum number of files in archive. If None, uses DEFAULT_MAX_ZIP_FILES.
+        max_ratio: Maximum compression ratio. If None, uses DEFAULT_MAX_COMPRESSION_RATIO.
+        progress_callback: Optional callback for extraction progress updates.
+        ultra_perf: If True, uses 1 MiB chunks for faster extraction.
+        verbose: If True, prints detailed extraction progress.
+        check_overlap: If True, enables physical overlap detection for zip bomb protection.
+        hash_registry: Optional HashRegistry instance to track SHA-256 hashes of extracted files.
+
+    Returns:
+        Tuple of (chat_file_path, media_dir_path). Both paths are absolute.
+
+    Raises:
+        FileNotFoundError: If zip_path does not exist.
+        ValueError: If archive is malformed or violates security constraints.
+
+    Example:
+        >>> chat, media = extract_whatsapp_zip("export.zip", extract_dir="./extracted")
+        >>> print(f"Chat: {chat}")
+        >>> print(f"Media: {media}")
+    """
     clean_zip = os.path.expanduser(zip_path)
     if not os.path.isfile(clean_zip):
         raise FileNotFoundError(f"Archive ZIP introuvable : {zip_path}")
@@ -464,6 +517,7 @@ def extract_whatsapp_zip(
         progress_callback=progress_callback,
         ultra_perf=ultra_perf,
         check_overlap=check_overlap,
+        hash_registry=hash_registry,
     )
 
     chat_file, media_dir = find_chat_in_extracted(extract_dir)

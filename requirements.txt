@@ -1,9 +1,34 @@
-# WhatsApp Chat Viewer - Dépendances Python
-# Le cœur de l'application fonctionne avec la bibliothèque standard Python (Python >= 3.10).
-# Pillow est recommandé pour la génération optimisée des miniatures d'images (--thumbs).
+# WhatsApp Chat Viewer - Python Dependencies
+# The core application runs with Python standard library (Python >= 3.10).
+# Pillow is recommended for optimized image thumbnail generation (--thumbs).
 Pillow>=10.0.0
 python-dotenv>=0.21.0
 
-# Optionnel — compression Brotli (meilleur ratio que Gzip, ~15-25% de plus)
-# Décommentez ou installez manuellement : pip install brotli
+# Optional — Brotli compression (better ratio than Gzip, ~15-25% more)
+# Uncomment or install manually: pip install brotli
 # brotli>=1.0.9
+
+# ============================================================================
+# Development Dependencies
+# ============================================================================
+# Install with: pip install -e ".[dev]"
+# ============================================================================
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Code formatting
+black>=23.0.0
+isort>=5.12.0
+
+# Linting
+ruff>=0.1.0
+
+# Type checking
+mypy>=1.0.0
+types-Pillow
+
+# Profiling (optional)
+# py-spy>=3.0.0  # For live profiling
+# memory-profiler>=0.60.0  # For memory profiling

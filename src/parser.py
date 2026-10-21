@@ -33,7 +33,21 @@ from src.i18n import get_day_names, get_month_names, get_media_type_map, DEFAULT
 
 
 def parse_date(date_str: str) -> datetime | None:
-    """Try to parse a WhatsApp date string into a datetime object."""
+    """Try to parse a WhatsApp date string into a datetime object.
+
+    Args:
+        date_str: Date string from WhatsApp export (e.g., "20/10/24 14:30:00").
+
+    Returns:
+        Parsed datetime object, or None if date format does not match any
+        supported pattern. Supports multiple date formats (DD/MM/YY, DD/MM/YYYY,
+        MM/DD/YY, MM/DD/YYYY with various separators).
+
+    Example:
+        >>> dt = parse_date("20/10/24 14:30:00")
+        >>> print(dt.year)
+        2024
+    """
     clean_date = date_str.strip("\u200e\u202f ")
     for fmt in DATE_FORMATS:
         try:
@@ -44,14 +58,42 @@ def parse_date(date_str: str) -> datetime | None:
 
 
 def format_day_label(dt: datetime, lang: str = DEFAULT_LANGUAGE) -> str:
-    """Return a human-readable localised day label, e.g. 'Monday 3 March 2024'."""
+    """Return a human-readable localised day label, e.g. 'Monday 3 March 2024'.
+
+    Args:
+        dt: Datetime object to format.
+        lang: Language code ('en' or 'fr') for day/month names.
+
+    Returns:
+        Localised date string in format: "Weekday Day Month Year".
+
+    Example:
+        >>> from datetime import datetime
+        >>> dt = datetime(2024, 3, 15)
+        >>> label = format_day_label(dt, lang="en")
+        >>> print(label)
+        "Friday 15 March 2024"
+    """
     day_names = get_day_names(lang)
     month_names = get_month_names(lang)
     return f"{day_names[dt.weekday()]} {dt.day} {month_names[dt.month]} {dt.year}"
 
 
 def get_attachment_filename(raw_content: str) -> str | None:
-    """Extract the filename from an attachment line, or return None if not an attachment."""
+    """Extract the filename from an attachment line, or return None if not an attachment.
+
+    Args:
+        raw_content: Message content line from WhatsApp export.
+
+    Returns:
+        Extracted filename string if attachment keywords are present,
+        or None if the message is not an attachment.
+
+    Example:
+        >>> fname = get_attachment_filename("IMG-20241020-WA0001.jpg (file attached)")
+        >>> print(fname)
+        "IMG-20241020-WA0001.jpg"
+    """
     for kw in ATTACHMENT_KEYWORDS:
         if kw in raw_content:
             part = raw_content.split(kw)[-1]
@@ -97,7 +139,26 @@ def get_media_type_label(filename: str, lang: str = DEFAULT_LANGUAGE) -> str:
 
 
 def format_inline_markdown(text: str) -> str:
-    """Convert raw inline text to safe HTML with markdown & clickable URLs."""
+    """Convert raw inline text to safe HTML with markdown & clickable URLs.
+
+    Processes WhatsApp-style markdown:
+    - `monospace` → <code>
+    - *bold* → <strong>
+    - _italic_ → <em>
+    - ~strikethrough~ → <del>
+    - http(s):// URLs → <a> links with target="_blank"
+
+    Args:
+        text: Raw message text from WhatsApp export.
+
+    Returns:
+        HTML-escaped string with markdown converted to HTML tags.
+
+    Example:
+        >>> html = format_inline_markdown("Check *this* out: https://example.com")
+        >>> print(html)
+        "Check <strong>this</strong> out: <a href=\"https://example.com\" ...>https://example.com</a>"
+    """
     parts = URL_PATTERN.split(text)  # odd indices = URLs
     result = []
     for i, part in enumerate(parts):
@@ -117,7 +178,27 @@ def format_inline_markdown(text: str) -> str:
 
 
 def format_message(text: str, quote_target_id: str | None = None) -> str:
-    """Convert raw WhatsApp message text to safe HTML with markdown, quotes & clickable URLs."""
+    """Convert raw WhatsApp message text to safe HTML with markdown, quotes & clickable URLs.
+
+    Handles:
+    - Code blocks (```code```)
+    - Quote blocks (lines starting with >)
+    - Quote authors ([Author]: or Author: at start of quote)
+    - Inline markdown (bold, italic, strikethrough, monospace)
+    - URL detection and safe HTML escaping
+
+    Args:
+        text: Raw message text from WhatsApp export.
+        quote_target_id: Optional message ID to link quote blocks to their target.
+
+    Returns:
+        HTML string with formatted content, quotes, and safe escaping.
+
+    Example:
+        >>> html = format_message("> Author: Hello\nWorld", quote_target_id="msg-10")
+        >>> print(html)
+        "<div class=\"wa-quote-box\" data-target-id=\"msg-10\">..."
+    """
     code_blocks: list[str] = []
 
     def save_code_block(match: re.Match) -> str:
@@ -270,7 +351,26 @@ def resolve_quote_target_id(
 
 
 def process_chat_reactions(messages: list[dict], max_lookback: int = 300) -> list[dict]:
-    """Link reactions to previous messages and extract trailing reactions with O(N) sliding lookback."""
+    """Link reactions to previous messages and extract trailing reactions with O(N) sliding lookback.
+
+    Processes two types of reactions:
+    1. Trailing reaction tags at end of messages: [Reactions: 👍 Alice, ❤️ Bob]
+    2. Reaction notification lines: "Alice reacted 👍 to 'message snippet'"
+
+    Args:
+        messages: List of message dictionaries with 'content' and 'sender' keys.
+        max_lookback: Maximum number of previous messages to search when linking
+                      reaction notifications to their target messages.
+
+    Returns:
+        Modified messages list with reactions attached to their target messages.
+        Adds 'reactions' key to messages containing list of {emoji, sender} dicts.
+        Marks reaction event messages with 'is_reaction_event' flag.
+
+    Note:
+        This function modifies the input list in-place and adds a sentinel
+        '_reactions_processed' flag to prevent re-processing.
+    """
     if not messages or messages[0].get("_reactions_processed"):
         return messages
 
@@ -322,7 +422,26 @@ def strip_annotations(content: str) -> tuple[str, bool]:
 
 
 def iter_chat(file_path: str) -> Iterator[dict]:
-    """Stream WhatsApp messages line-by-line from exported .txt without loading the full file into memory at once."""
+    """Stream WhatsApp messages line-by-line from exported .txt without loading the full file into memory at once.
+
+    Parses WhatsApp chat format and yields message dictionaries incrementally.
+    Each message dict contains: 'date', 'sender', 'content', 'dt' (parsed datetime).
+
+    Args:
+        file_path: Path to the WhatsApp chat .txt export file.
+
+    Yields:
+        Message dictionaries with keys: date, sender, content, dt.
+
+    Note:
+        Multi-line messages are aggregated into a single 'content' field.
+        System messages (calls, encryption, etc.) are also yielded.
+        Generator pattern allows processing of very large files efficiently.
+
+    Example:
+        >>> for msg in iter_chat("chat.txt"):
+        ...     print(f"{msg['sender']}: {msg['content'][:50]}")
+    """
     if not os.path.isfile(file_path):
         return
 
@@ -360,6 +479,23 @@ def iter_chat(file_path: str) -> Iterator[dict]:
 
 
 def parse_chat(file_path: str) -> list[dict]:
-    """Parse a WhatsApp exported .txt file into a list of message dicts with resolved reactions."""
+    """Parse a WhatsApp exported .txt file into a list of message dicts with resolved reactions.
+
+    This is a convenience wrapper around iter_chat() and process_chat_reactions().
+    Loads the entire chat into memory, suitable for most use cases.
+
+    Args:
+        file_path: Path to the WhatsApp chat .txt export file.
+
+    Returns:
+        List of message dictionaries with reaction data resolved.
+        Each message contains: date, sender, content, dt, and optionally
+        reactions (list of {emoji, sender} dicts).
+
+    Example:
+        >>> messages = parse_chat("chat.txt")
+        >>> print(f"Total messages: {len(messages)}")
+        >>> print(f"First message: {messages[0]['content']}")
+    """
     raw_messages = list(iter_chat(file_path))
     return process_chat_reactions(raw_messages)

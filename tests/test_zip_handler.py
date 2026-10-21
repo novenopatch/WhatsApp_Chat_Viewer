@@ -130,7 +130,7 @@ class TestZipHandler(unittest.TestCase):
         with zipfile.ZipFile(zip_path, "w") as zf:
             zf.writestr("_chat.txt", "15/10/24 10:00 - Alice: Salut")
 
-        chat, media, output, me = load_config(["--zip", zip_path, "--output", "out.html"])
+        chat, media, output, me, _ = load_config(["--zip", zip_path, "--output", "out.html"])
         self.assertTrue(os.path.isfile(chat))
         self.assertEqual(os.path.basename(chat), "_chat.txt")
         self.assertEqual(output, "out.html")
@@ -140,7 +140,7 @@ class TestZipHandler(unittest.TestCase):
         with zipfile.ZipFile(zip_path, "w") as zf:
             zf.writestr("_chat.txt", "15/10/24 10:00 - Alice: Salut")
 
-        chat, media, output, me = load_config([zip_path])
+        chat, media, output, me, _ = load_config([zip_path])
         self.assertTrue(os.path.isfile(chat))
         self.assertEqual(os.path.basename(chat), "_chat.txt")
 
@@ -149,7 +149,7 @@ class TestZipHandler(unittest.TestCase):
         with zipfile.ZipFile(zip_path, "w") as zf:
             zf.writestr("_chat.txt", "15/10/24 10:00 - Alice: Salut")
 
-        chat, media, output, me = load_config(["--chat", zip_path])
+        chat, media, output, me, _ = load_config(["--chat", zip_path])
         self.assertTrue(os.path.isfile(chat))
 
     def test_load_config_with_dir_flag_pointing_to_zip(self):
@@ -157,7 +157,7 @@ class TestZipHandler(unittest.TestCase):
         with zipfile.ZipFile(zip_path, "w") as zf:
             zf.writestr("_chat.txt", "15/10/24 10:00 - Alice: Salut")
 
-        chat, media, output, me = load_config(["--dir", zip_path])
+        chat, media, output, me, _ = load_config(["--dir", zip_path])
         self.assertTrue(os.path.isfile(chat))
 
     def test_load_config_from_dotenv_zip(self):
@@ -172,7 +172,7 @@ class TestZipHandler(unittest.TestCase):
         orig_cwd = os.getcwd()
         try:
             os.chdir(self.test_dir)
-            chat, media, output, me = load_config([])
+            chat, media, output, me, _ = load_config([])
             self.assertTrue(os.path.isfile(chat))
             self.assertEqual(me, "Alice")
         finally:

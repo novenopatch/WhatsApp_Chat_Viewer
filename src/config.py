@@ -6,12 +6,25 @@ import argparse
 import os
 from src import __version__
 from src.zip_handler import is_zip_file, extract_whatsapp_zip
+from src.hash_validator import HashRegistry
 
 
 def parse_dotenv(path: str) -> dict[str, str]:
     """Minimal .env parser with zero external dependencies.
 
     Supports KEY=value, KEY="value", KEY='value', and # comments.
+
+    Args:
+        path: Path to the .env file to parse.
+
+    Returns:
+        Dictionary of environment variables extracted from the file.
+        Returns empty dict if file does not exist.
+
+    Example:
+        >>> env = parse_dotenv(".env")
+        >>> print(env.get("ZIP_FILE"))
+        "/path/to/export.zip"
     """
     env: dict[str, str] = {}
     if not os.path.isfile(path):
@@ -27,7 +40,20 @@ def parse_dotenv(path: str) -> dict[str, str]:
 
 
 def find_chat_txt(directory: str) -> str | None:
-    """Auto-discover the WhatsApp chat .txt inside directory."""
+    """Auto-discover the WhatsApp chat .txt inside directory.
+
+    Args:
+        directory: Path to the directory to search for WhatsApp chat files.
+
+    Returns:
+        Path to the found chat file, or None if no .txt file is found.
+        Priority order: _chat.txt, chat.txt, first .txt file in directory.
+
+    Example:
+        >>> chat_file = find_chat_txt("/path/to/extracted")
+        >>> print(chat_file)
+        "/path/to/extracted/_chat.txt"
+    """
     if not os.path.isdir(directory):
         return None
     for name in ("_chat.txt", "chat.txt"):
@@ -41,7 +67,19 @@ def find_chat_txt(directory: str) -> str | None:
 
 
 def prompt_user(label: str, default: str = "") -> str:
-    """Ask the user for a value with tab-completion when available."""
+    """Ask the user for a value with tab-completion when available.
+
+    Args:
+        label: Prompt label to display to the user.
+        default: Default value to return if input fails or is empty.
+
+    Returns:
+        User input value, or default if stdin is not a TTY or input fails.
+
+    Note:
+        Only works in interactive terminal sessions (TTY). Falls back to
+        default value in non-interactive environments (CI/CD, pipes).
+    """
     import sys
     if not sys.stdin or not hasattr(sys.stdin, "isatty") or not sys.stdin.isatty():
         return default
@@ -61,7 +99,20 @@ def prompt_user(label: str, default: str = "") -> str:
 
 
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:
-    """Parse command-line arguments."""
+    """Parse command-line arguments.
+
+    Args:
+        args: List of command-line arguments (excluding program name).
+              If None, uses sys.argv[1:].
+
+    Returns:
+        Namespace object containing parsed CLI arguments.
+
+    Example:
+        >>> args = parse_args(["--zip", "export.zip", "--output", "chat.html"])
+        >>> print(args.zip)
+        "export.zip"
+    """
     p = argparse.ArgumentParser(
         prog="build.py",
         description="Convertit un export WhatsApp (.txt ou .zip) en page HTML interactive et moderne.",
@@ -101,16 +152,34 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--host", default="127.0.0.1", help="Hôte d'écoute pour le serveur Web --serve (défaut : 127.0.0.1)")
     p.add_argument("--verbose", "-v", action="store_true", help="Mode verbeux : affiche le suivi détaillé de l'extraction, la RAM et le CPU consommés")
     p.add_argument("--ultra-perf", "--perf", "--fast", action="store_true", dest="ultra_perf", help="Mode Ultra-Performance : décompression turbo, parsing accéléré, encodage optimisé")
+    p.add_argument("--profile", action="store_true", help="Enable cProfile profiling and save stats to profile.stats")
+    p.add_argument("--verify-hashes", action="store_true", help="Vérifie l'intégrité des fichiers extraits via SHA-256 (après extraction)")
     return p.parse_args(args)
 
 
-def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str | None]:
-    """Resolve (chat_file, media_dir, output_file, me_user) using a 4-tier hierarchy:
+def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str | None, HashRegistry | None]:
+    """Resolve (chat_file, media_dir, output_file, me_user, hash_registry) using a 4-tier hierarchy:
 
-    1. CLI arguments  (--zip / input_target / --chat / --dir / --media / --output / --me)
+    Configuration priority (highest to lowest):
+    1. CLI arguments  (--zip / input_target / --chat / --dir / --media / --output / --me / --verify-hashes)
     2. .env file      (ZIP_FILE / CHAT_FILE / CHAT_DIR / MEDIA_DIR / OUTPUT_FILE / ME / YOUR_NAME)
     3. Defaults       (chat.txt / candidate .zip + media/ in current directory if present)
     4. Interactive    (prompt user for remaining missing info)
+
+    Args:
+        cli_args: Optional list of command-line arguments to parse.
+                  If None, uses sys.argv[1:].
+
+    Returns:
+        Tuple of (chat_file_path, media_dir_path, output_file_path, me_user_name, hash_registry).
+        chat_file and media_dir are guaranteed to be strings (may be empty).
+        me_user may be None if not configured or detected.
+        hash_registry is a HashRegistry instance if --verify-hashes is enabled, otherwise None.
+
+    Example:
+        >>> chat, media, output, me, registry = load_config(["--zip", "export.zip"])
+        >>> print(chat)
+        "/path/to/extracted/_chat.txt"
     """
     args = parse_args(cli_args)
 
@@ -120,6 +189,11 @@ def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str |
     me_user: str | None = None
     opt_ultra_perf = getattr(args, "ultra_perf", False)
     opt_verbose = getattr(args, "verbose", False)
+    opt_verify_hashes = getattr(args, "verify_hashes", False)
+
+    hash_registry: HashRegistry | None = None
+    if opt_verify_hashes:
+        hash_registry = HashRegistry()
 
     # Tier 1 — CLI args
     target_zip = args.zip
@@ -136,6 +210,7 @@ def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str |
             args.extract_dir,
             ultra_perf=opt_ultra_perf,
             verbose=opt_verbose,
+            hash_registry=hash_registry,
         )
 
     # Handle input_target if not a zip
@@ -193,6 +268,7 @@ def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str |
                     env.get("EXTRACT_DIR"),
                     ultra_perf=opt_ultra_perf,
                     verbose=opt_verbose,
+                    hash_registry=hash_registry,
                 )
 
         if chat_file is None:
@@ -207,7 +283,7 @@ def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str |
             elif env.get("CHAT_FILE"):
                 candidate_cf = env["CHAT_FILE"]
                 if is_zip_file(candidate_cf):
-                    chat_file, media_dir = extract_whatsapp_zip(candidate_cf, env.get("EXTRACT_DIR"))
+                    chat_file, media_dir = extract_whatsapp_zip(candidate_cf, env.get("EXTRACT_DIR"), hash_registry=hash_registry)
                 else:
                     chat_file = candidate_cf
 
@@ -232,7 +308,7 @@ def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str |
             if cand_zip:
                 zip_full = os.path.join(os.getcwd(), cand_zip)
                 if is_zip_file(zip_full):
-                    chat_file, media_dir = extract_whatsapp_zip(zip_full)
+                    chat_file, media_dir = extract_whatsapp_zip(zip_full, hash_registry=hash_registry)
 
     if media_dir is None:
         default_media = os.path.join(os.getcwd(), "media")
@@ -251,7 +327,7 @@ def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str |
             os.path.join(os.getcwd(), "chat.txt"),
         )
         if chat_file and is_zip_file(chat_file):
-            chat_file, extracted_media = extract_whatsapp_zip(chat_file)
+            chat_file, extracted_media = extract_whatsapp_zip(chat_file, hash_registry=hash_registry)
             if media_dir is None:
                 media_dir = extracted_media
 
@@ -263,4 +339,4 @@ def load_config(cli_args: list[str] | None = None) -> tuple[str, str, str, str |
             print(f"\n📂 Dossier des médias introuvable automatiquement.")
             media_dir = prompt_user("Dossier des médias (Entrée pour ignorer)", guess)
 
-    return chat_file, media_dir, output_file, me_user
+    return chat_file, media_dir, output_file, me_user, hash_registry

@@ -35,8 +35,21 @@ from src.user_detector import resolve_me_user
 def generate_thumbnails(media_dir: str, max_size: tuple[int, int] = (400, 400), quality: int = 80) -> int:
     """Generate lightweight thumbnails in media_dir/.thumbs for image files in parallel.
 
-    Skips files that already have an up-to-date thumbnail.
-    Returns the count of new thumbnails created.
+    Creates optimized thumbnails for faster initial page load. Skips files that
+    already have an up-to-date thumbnail. Requires Pillow (PIL) to be installed.
+
+    Args:
+        media_dir: Directory containing media files (images).
+        max_size: Maximum (width, height) tuple for thumbnails in pixels.
+        quality: JPEG quality (1-100) for thumbnail compression.
+
+    Returns:
+        Number of new thumbnails created. Returns 0 if PIL is not available
+        or if media_dir is invalid.
+
+    Example:
+        >>> count = generate_thumbnails("/path/to/media", max_size=(400, 400))
+        >>> print(f"Created {count} thumbnails")
     """
     if not HAS_PIL or not media_dir or not os.path.isdir(media_dir):
         return 0
@@ -114,6 +127,21 @@ def to_base64_data_uri(
 
     Compresses and resizes large photos before Base64 encoding to keep HTML lightweight.
     Results are cached in memory to avoid redundant reads/encodings.
+
+    Args:
+        file_path: Path to the media file to encode.
+        max_size: Maximum file size in bytes (default: 20 MiB). Files larger than
+                  this return None.
+        optimize_large_images: If True and PIL is available, compresses and
+                               resizes images > 300KB and > 1600px dimensionally.
+
+    Returns:
+        Base64 Data URI string (e.g., "data:image/jpeg;base64,/9j/4AAQ..."),
+        or None if file doesn't exist, exceeds max_size, or encoding fails.
+
+    Note:
+        Uses an in-memory cache keyed by (file_path, max_size, optimize_large_images)
+        to avoid re-encoding the same file multiple times.
     """
     if not file_path or not os.path.isfile(file_path):
         return None
@@ -181,7 +209,29 @@ def render_attachment(
 ) -> str:
     """Return the HTML snippet for a given attachment filename.
 
-    If standalone is True, encodes local files directly into Base64 Data URIs.
+    Generates appropriate HTML based on file type:
+    - Images: <img> with lazy loading and optional thumbnail
+    - Videos: <video> with controls and fullscreen button
+    - Audio: <audio> with speed control button
+    - Stickers: <img> with sticker class
+    - Documents: <a> download link
+
+    Args:
+        filename: Media filename (e.g., "IMG-20241020-WA0001.jpg").
+        media_dir: Directory containing the media file.
+        output_dir: Output HTML directory for relative path calculation.
+        standalone: If True, embeds media as Base64 Data URIs.
+        max_embed_size: Max file size in bytes for Base64 embedding.
+        lang: Language code for UI strings.
+        media_url_prefix: URL prefix for media files (for server mode).
+
+    Returns:
+        HTML string representing the attachment.
+
+    Example:
+        >>> html = render_attachment("photo.jpg", "/media", standalone=True)
+        >>> print(html[:50])
+        '<img src="data:image/jpeg;base64,/9j/4AAQ..."'
     """
     t = get_translations(lang)
     if media_url_prefix:
@@ -243,7 +293,27 @@ def render_attachment(
 
 
 def render_reactions_html(reactions: list[dict], msg_id: str) -> str:
-    """Render the HTML for reaction badges on a message bubble."""
+    """Render the HTML for reaction badges on a message bubble.
+
+    Groups reactions by emoji and displays count per emoji with tooltip
+    showing all reactors.
+
+    Args:
+        reactions: List of reaction dicts with 'emoji' and 'sender' keys.
+        msg_id: Message ID for data attributes.
+
+    Returns:
+        HTML string with reaction pill elements. Returns empty container
+        if no reactions.
+
+    Example:
+        >>> html = render_reactions_html(
+        ...     [{"emoji": "👍", "sender": "Alice"}, {"emoji": "❤️", "sender": "Bob"}],
+        ...     "msg-10"
+        ... )
+        >>> print(html)
+        '<div class="wa-reactions-container" data-msg-id="msg-10">...'
+    """
     if not reactions:
         return f'<div class="wa-reactions-container" data-msg-id="{msg_id}"></div>'
 
@@ -285,7 +355,29 @@ def build_bubble(
     month: str = "",
     media_types: str = "",
 ) -> str:
-    """Build the HTML for a single message bubble (one sender, one or more sub-messages)."""
+    """Build the HTML for a single message bubble (one sender, one or more sub-messages).
+
+    Creates a message row with avatar, sender label, and message content.
+    'Me' messages are aligned to the right with green styling.
+
+    Args:
+        sender: Display name of the message sender.
+        color: Hex color code for the avatar bubble.
+        initials: 1-2 character initials for the avatar.
+        group_texts: List of HTML strings for message content (sub-messages).
+        is_me: If True, applies 'me' styling (right-aligned, green bubble).
+        has_media: Whether any message in the group contains media.
+        month: Month identifier for data attribute (YYYY-MM format).
+        media_types: Comma-separated media types for data attribute.
+
+    Returns:
+        HTML string for the complete message bubble row.
+
+    Example:
+        >>> html = build_bubble("Alice", "#128C7E", "A", ["<p>Hello</p>"])
+        >>> print(html[:80])
+        '<div class="message-row" data-sender="Alice" data-has-media="false">...'
+    """
     avatar = (
         f'<div class="avatar" title="{html.escape(sender)}">'
         f'{html.escape(initials)}</div>'
@@ -314,7 +406,20 @@ def _collect_gallery_data(
 ) -> dict:
     """Collect gallery items (photos, audios, docs, links) from parsed messages.
 
-    Returns a dict with keys: photos, audios, docs, links.
+    Scans all messages for attachments and URLs, categorizing them for the
+    media gallery drawer.
+
+    Args:
+        messages: List of parsed message dictionaries.
+        media_dir: Directory containing media files.
+        output_dir: Output HTML directory for relative path calculation.
+        standalone: If True, embeds media as Base64 Data URIs.
+        max_embed_size: Max file size in bytes for Base64 embedding.
+        media_url_prefix: URL prefix for media files (for server mode).
+
+    Returns:
+        Dictionary with keys: 'photos', 'audios', 'docs', 'links'.
+        Each key maps to a list of dicts with src/thumb/sender/time/msgId fields.
     """
     if media_url_prefix:
         rel_media = media_url_prefix.rstrip("/")
@@ -392,8 +497,25 @@ def render_grouped_messages(
 ) -> tuple[str, list[str], tuple[str, str]]:
     """Render messages grouped by sender into HTML with date separators and system notifications.
 
+    Groups consecutive messages from the same sender into single bubbles.
+    Inserts date separators between days. Handles system messages with icons.
+
+    Args:
+        messages: List of parsed message dictionaries.
+        media_dir: Directory containing media files.
+        color_map: Mapping of sender names to hex color codes.
+        output_dir: Output HTML directory for relative path calculation.
+        me_user: User name to highlight as 'me' (right-aligned green bubbles).
+        standalone: If True, embeds media as Base64 Data URIs.
+        max_embed_size: Max file size in bytes for Base64 embedding.
+        lang: Language code for UI strings.
+        media_url_prefix: URL prefix for media files (for server mode).
+
     Returns:
-        (html_string, attendees_list, (start_date_str, end_date_str))
+        Tuple of (html_string, attendees_list, (start_date_str, end_date_str)).
+        - html_string: Complete HTML for all message bubbles.
+        - attendees_list: Unique sender names in order of appearance.
+        - date_range: (first_message_date, last_message_date) strings.
     """
     t = get_translations(lang)
     clear_base64_cache()
@@ -561,7 +683,31 @@ def build_html(
     lang: str = "auto",
     media_url_prefix: str = "",
 ) -> str:
-    """Build the full self-contained HTML page from parsed messages."""
+    """Build the full self-contained HTML page from parsed messages.
+
+    Generates a complete HTML document with CSS, JavaScript, and message content.
+    Includes features: dark/light mode, search, media gallery, statistics,
+    reactions, quote navigation, and responsive design.
+
+    Args:
+        messages: List of parsed message dictionaries.
+        media_dir: Directory containing media files.
+        output_path: Output HTML file path (for relative path calculation).
+        me_user: User name to highlight as 'me' (right-aligned green bubbles).
+        minify: If True, removes unnecessary whitespace from HTML.
+        standalone: If True, embeds media as Base64 Data URIs.
+        max_embed_size: Max file size in bytes for Base64 embedding.
+        lang: Language code ('auto', 'en', 'fr') for UI strings.
+        media_url_prefix: URL prefix for media files (for server mode).
+
+    Returns:
+        Complete HTML document string ready to write to file.
+
+    Example:
+        >>> html = build_html(messages, "/media", output_path="chat.html")
+        >>> with open("chat.html", "w") as f:
+        ...     f.write(html)
+    """
     lang = resolve_language(lang)
     t = get_translations(lang)
     clear_base64_cache()

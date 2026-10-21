@@ -35,7 +35,21 @@ SERVER_ULTRA_PERF: bool = False
 
 
 def get_session_base_dir() -> str:
-    """Return an on-disk directory for storing session files (avoiding tmpfs/RAM)."""
+    """Return an on-disk directory for storing session files (avoiding tmpfs/RAM).
+
+    Prioritizes physical disk storage over tmpfs to prevent RAM exhaustion
+    with large uploads. Checks directories in order:
+    1. WA_SESSION_DIR or WA_TEMP_DIR environment variable
+    2. ~/.cache/whatsapp_chat_viewer/sessions
+    3. .temp_sessions in current working directory
+    4. System temp directory
+
+    Returns:
+        Absolute path to the session base directory.
+
+    Note:
+        Creates the directory if it doesn't exist.
+    """
     env_dir = os.environ.get("WA_SESSION_DIR") or os.environ.get("WA_TEMP_DIR")
     if env_dir:
         os.makedirs(env_dir, exist_ok=True)
@@ -63,7 +77,15 @@ def get_session_base_dir() -> str:
 
 
 def cleanup_stale_sessions() -> None:
-    """Clean up leftover session folders from previously killed processes."""
+    """Clean up leftover session folders from previously killed processes.
+
+    Removes all directories starting with 'wa_session_' from the session base
+    directory. This is called on server startup to clean up after crashes or
+    force-terminated processes.
+
+    Note:
+        Ignores errors during deletion to prevent blocking startup.
+    """
     base_dir = get_session_base_dir()
     if not os.path.isdir(base_dir):
         return
@@ -78,7 +100,20 @@ def cleanup_stale_sessions() -> None:
 
 
 def extract_boundary(content_type: str) -> str | None:
-    """Extract boundary string from multipart/form-data Content-Type header."""
+    """Extract boundary string from multipart/form-data Content-Type header.
+
+    Args:
+        content_type: Value of the Content-Type header (e.g.,
+                     "multipart/form-data; boundary=----WebKitFormBoundary...").
+
+    Returns:
+        Extracted boundary string, or None if not found.
+
+    Example:
+        >>> boundary = extract_boundary("multipart/form-data; boundary=abc123")
+        >>> print(boundary)
+        "abc123"
+    """
     if not content_type:
         return None
     for part in content_type.split(";"):
@@ -101,8 +136,28 @@ def parse_multipart_stream(
 ) -> tuple[dict[str, str], str | None, str | None, int]:
     """Stream multipart form-data directly to disk without holding files in RAM.
 
+    Processes multipart/form-data uploads by streaming directly to disk,
+    allowing handling of very large files without RAM exhaustion.
+
+    Args:
+        stream: Input stream (file-like object) to read from.
+        content_length: Total Content-Length from HTTP header.
+        boundary: Multipart boundary string or bytes.
+        target_dir: Directory to save uploaded files.
+        chunk_size: Size of read chunks in bytes (default: 1 MiB).
+        progress_callback: Optional callback function(total_bytes, content_length)
+                          called during upload progress.
+
     Returns:
-        (fields_dict, saved_file_path, original_filename, file_bytes_written)
+        Tuple of (fields_dict, saved_file_path, original_filename, file_bytes_written).
+        - fields_dict: Dict of form field names to values (non-file fields).
+        - saved_file_path: Path to saved file on disk, or None if no file uploaded.
+        - original_filename: Original filename from upload, or None.
+        - file_bytes_written: Number of bytes written to disk.
+
+    Note:
+        Only processes the first file field in the multipart data.
+        Follows HTTP multipart/form-data RFC 7578 specification.
     """
     if isinstance(boundary, str):
         boundary_bytes = boundary.encode("latin1")
@@ -255,7 +310,18 @@ def parse_multipart_stream(
 
 
 class WhatsAppViewerHandler(http.server.BaseHTTPRequestHandler):
-    """HTTP request handler for the drag & drop web interface."""
+    """HTTP request handler for the drag & drop web interface.
+
+    Handles GET and POST requests for:
+    - Serving the drag & drop UI (/)
+    - File upload and conversion (/api/convert)
+    - Progress tracking (/api/progress)
+    - Viewing generated chats (/view/<session_id>)
+    - Downloading chats (/download/<session_id>)
+    - Serving media files (/media/<session_id>/<filename>)
+
+    Supports HTTP Range requests for audio/video scrubbing.
+    """
 
     def log_message(self, format: str, *args) -> None:
         """Custom concise logging format with resource metrics in verbose mode."""

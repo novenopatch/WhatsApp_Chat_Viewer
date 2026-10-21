@@ -84,7 +84,7 @@ class TestConfig(unittest.TestCase):
             orig_cwd = os.getcwd()
             try:
                 os.chdir(td)
-                chat, media, output, me = load_config([
+                chat, media, output, me, _ = load_config([
                     "--chat", chat_cli,
                     "--media", "cli_media",
                     "--output", "cli_out.html",
@@ -112,7 +112,7 @@ class TestConfig(unittest.TestCase):
             orig_cwd = os.getcwd()
             try:
                 os.chdir(td)
-                chat, media, output, me = load_config([])
+                chat, media, output, me, _ = load_config([])
                 self.assertEqual(chat, "env_chat.txt")
                 self.assertEqual(media, "env_media")
                 self.assertEqual(output, "env_out.html")
@@ -134,7 +134,7 @@ class TestConfig(unittest.TestCase):
             orig_cwd = os.getcwd()
             try:
                 os.chdir(td)
-                chat, media, output, me = load_config(["--dir", sub_export])
+                chat, media, output, me, _ = load_config(["--dir", sub_export])
                 self.assertEqual(chat, chat_file)
                 self.assertEqual(media, media_folder)
                 self.assertTrue(output.endswith("output.html"))

@@ -10,7 +10,34 @@ from src.parser import is_system_message, get_attachment_filename, get_media_typ
 
 
 def compute_stats(messages: list[dict], lang: str = DEFAULT_LANGUAGE) -> dict:
-    """Compute chat statistics (messages per sender, hourly activity, media types, etc.)."""
+    """Compute chat statistics (messages per sender, hourly activity, media types, etc.).
+
+    Analyzes the message list to extract:
+    - Total message count (excluding system messages)
+    - Message count per sender
+    - Hourly activity distribution (0-23)
+    - Daily activity and most active day
+    - Media type breakdown (photos, videos, audio, documents)
+
+    Args:
+        messages: List of parsed message dictionaries.
+        lang: Language code for media type labels.
+
+    Returns:
+        Dictionary with keys:
+        - total: Total messages including system messages
+        - real_total: Total messages excluding system messages
+        - sender_counts: Counter of messages per sender
+        - hour_counts: Counter of messages per hour (0-23)
+        - day_counts: Counter of messages per day (YYYY-MM-DD)
+        - most_active: Tuple of (date_string, message_count) for busiest day
+        - media_counts: Counter of media types shared
+
+    Example:
+        >>> stats = compute_stats(messages)
+        >>> print(f"Total: {stats['real_total']}")
+        >>> print(f"Most active: {stats['most_active']}")
+    """
     real = [m for m in messages if not is_system_message(m["content"])]
 
     sender_counts = Counter(m["sender"] for m in real)
@@ -39,7 +66,27 @@ def compute_stats(messages: list[dict], lang: str = DEFAULT_LANGUAGE) -> dict:
 
 
 def render_stats_html(stats: dict, color_map: dict[str, str], lang: str = DEFAULT_LANGUAGE) -> str:
-    """Build the collapsible stats <details> HTML section."""
+    """Build the collapsible stats <details> HTML section.
+
+    Generates an HTML statistics dashboard with four sections:
+    - Messages per person (bar chart)
+    - Activity by hour (24-hour heatmap)
+    - Media shared (count breakdown)
+    - General info (duration, averages, totals)
+
+    Args:
+        stats: Statistics dictionary from compute_stats().
+        color_map: Mapping of sender names to hex color codes.
+        lang: Language code for UI strings.
+
+    Returns:
+        HTML string for the collapsible <details> stats section.
+
+    Example:
+        >>> html = render_stats_html(stats, color_map, lang="en")
+        >>> print(html[:100])
+        '<details class="stats-section">...'
+    """
     t = get_translations(lang)
     real_total = stats["real_total"]
 

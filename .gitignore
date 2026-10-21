@@ -4,6 +4,9 @@ __pycache__/
 .venv/
 .temp_sessions/
 
+# Profiling
+profile.stats
+
 # WhatsApp Chat Viewer files
 /media
 *.html

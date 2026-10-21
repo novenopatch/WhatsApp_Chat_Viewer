@@ -7,7 +7,28 @@ import subprocess
 
 
 def resolve_me_user(me_user: str | None, attendees: list[str]) -> str | None:
-    """Find the best matching attendee name for me_user (exact, case-insensitive, or substring)."""
+    """Find the best matching attendee name for me_user (exact, case-insensitive, or substring).
+
+    Attempts multiple matching strategies in order:
+    1. Exact match
+    2. Case-insensitive match
+    3. Clean prefix match (removes ~, +, @ prefixes)
+    4. Substring match (user string in attendee or vice versa)
+
+    Args:
+        me_user: User-specified name to match against attendees.
+        attendees: List of participant names from the chat.
+
+    Returns:
+        Best matching attendee name, or original me_user if no match found.
+        Returns None if me_user is None or empty.
+
+    Example:
+        >>> attendees = ["Alice", "Bob", "+Charlie"]
+        >>> resolved = resolve_me_user("alice", attendees)
+        >>> print(resolved)
+        "Alice"
+    """
     if not me_user:
         return None
     cleaned = me_user.strip()
@@ -34,12 +55,26 @@ def resolve_me_user(me_user: str | None, attendees: list[str]) -> str | None:
 
 
 def auto_detect_me(attendees: list[str], context_hint: str = "") -> str | None:
-    """Attempt to auto-detect 'me' participant:
+    """Attempt to auto-detect 'me' participant from the chat.
 
-    1. Pronouns ('vous', 'you', 'moi', 'me')
-    2. Path/context hint matching attendee
-    3. OS username / user env
-    4. Git config user.name
+    Uses multiple heuristics in priority order:
+    1. Pronouns ('vous', 'you', 'moi', 'me') in attendee names
+    2. Path/context hint matching attendee (file path, directory name)
+    3. OS username from USER/USERNAME environment variable
+    4. Git config user.name from local repository
+
+    Args:
+        attendees: List of participant names from the chat.
+        context_hint: Optional context string (e.g., file path) to match against.
+
+    Returns:
+        Best guess for the 'me' participant name, or None if no match found.
+
+    Example:
+        >>> attendees = ["Alice", "Bob", "Me"]
+        >>> detected = auto_detect_me(attendees)
+        >>> print(detected)
+        "Me"
     """
     if not attendees:
         return None
